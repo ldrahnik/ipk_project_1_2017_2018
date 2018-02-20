@@ -1,0 +1,52 @@
+Popis:
+ZADÁNÍ:
+Vašim úkolem je:
+[1] Seznamte se s kostrami kódů pro programování klientských a serverových síťových aplikací (přednáška třetí) za použití BSD socketů. Navrhněte vlastní aplikační protokol realizující přenos souboru a relevantní informace k projektu uveďte v dokumentaci. (8 bodů)
+[2] Naprogramujte jak klientskou tak serverovou aplikaci v C/C++ realizující čtení/zápis souborů z/na server. (12 bodů)
+
+KONVENCE ODEVZDÁVANÉHO ZIP ARCHIVU xlogin00.zip
+dokumentace.pdf - výstupy zadání [1]
+readme - základní informace, případná omezení projektu
+Makefile
+*.c, *.cpp, *.cc, *.h - zdrojové a hlavičkové soubory výstupů zadání [2]
+Ad [1]
+Navrhěte vlastní aplikační protokol, kterými poté spolu budou komunikovat klient a server z bodu [2] tohoto zadání. Inspirovat se můžete například výměnou zpráv protokolů TFTP či FTP.
+
+V dobré dokumentaci se očekává následující: titulní strana, obsah, logické strukturování textu, výcuc relevantních informací z nastudované literatury, popis aplikačního protokolu formou konečného automatu, popis zajímavějších pasáží implementace, demonstrace činnosti implementovaných aplikací, normovaná bibliografie.
+
+Ad [2]
+Umístění souborů  na straně serveru je v aktuálním adresáři, ve kterém se nachází server. Spuštění klienta předpokládá provedení pouze jedné operace a to uložení nebo přečtení souboru se zadaným jménem. Komunikace mezi serverem a klientem bude schopna se vypořádat se ztrátami paketů (a to buď na aplikační, nebo transportní vrstvě).
+
+Konvence jména klientské aplikace a jejích povinných vstupních parametrů:
+./ipk-client -h host -p port [-r|-w] file
+host (IP adresa nebo fully-qualified DNS name) identifikace serveru jakožto koncového bodu komunikace klienta;
+port (číslo) cílové číslo portu;
+-r značí, že klient bude ze serveru soubor číst;
+-w značí, že klient bude na server soubor zapisovat;
+file (cesta) určuje cestu k souboru, se kterým se bude manipulovat (buď se jeho obsah načte na server, nebo se obsah daného souboru na serveru zapíše do lokálního).
+např.
+
+./ipk-client -h eva.fit.vutbr.cz -p 55555 -r myfile.xml
+Konvence jména serverové aplikace a jejích povinných vstupních parametrů:
+./ipk-server -p port                    
+port (číslo) číslo portu, na kterém server naslouchá na připojení od klientů.
+např.
+
+./ipk-server -p 55555 
+
+DOPORUČENÍ
+
+Výsledky vaší implementace by měly být co možná nejvíce multiplatformní mezi OS založenými na unixu, ovšem samotné přeložení projektu a funkčnost vaší aplikace budou testovány na refernčním http://nes.fit.vutbr.cz/isa/ISA2015.ova pro předmět ISA, kterýžto bude sloužit jako virtuální mašinka s pravděpodobně jedním síťovým rozhraním.
+Všechny implementované programy by měly být použitelné a řádně komentované. Pokud už přejímáte zdrojové kódy z různých tutoriálů či příkladů z Internetu (ne mezi sebou pod hrozbou ortelu disciplinární komise), tak je POVINNÉ správně vyznačit tyto sekce a jejich autory dle licenčních podmínek, kterými se distribuce daných zdrojových kódů řídí. V případě nedodržení bude na projekt nahlíženo jako na plagiát!
+Pro snadné parsování vstupních argumentů se doporučuje použít funkci getopt().
+Ukončení serverové aplikace z bodu [2] bude vázáno na SIGINT signál (tedy Ctrl+C).
+Projekt bude opravován ručně. Počítejte tedy s nejzazším možným termínem oprav a reklamací určených garantem předmětu.
+Výsledky vaší implementace by měly být co možná nejvíce multiplatformní mezi OS založenými na unixu (dbejte na to zejména při vytváření Makefile).
+Do souboru Readme uveďte případná omezení funkcionality vašeho projektu - na dokumentovanou chybu se nahlíží v lepším světle než na nedokumentovanou!
+Jen pro představu je mé vlastní ošklivé řešení projektu na cca 300 řádků zdrojového kódu (klient i server dohromady).
+LITERATURA:
+
+O. Ryšavý, J. Ráb, IPK - BSD schránky - 3. přednáška
+K. Sollins, The TFTP Protocol (revision 2), https://tools.ietf.org/html/rfc1350
+J. Postel, J. Reynolds, FILE TRANSFER PROTOCOL (FTP),https://tools.ietf.org/html/rfc959
+P. Grygárek, Softwarová rozhraní systémů UNIX pro přístup k síťovým službám, http://www.cs.vsb.cz/grygarek/LAN/sockets.html
