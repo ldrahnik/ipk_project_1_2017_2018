@@ -26,9 +26,19 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
 
+#include <fstream>
+
 using namespace std;
 
 #define MAX_CLIENTS 128
+
+#define BUFFER_SIZE 1448
+
+#define OK 0
+#define DOES_NOT_EXIST 1
+#define CANNOT_WRITE 2
+#define HEADER_ERROR 3
+#define ALREADY_USED 4
 
 /**
  * When is pressed ctrl+c.
@@ -56,7 +66,6 @@ typedef struct pthread_args {
   int sock;                           // in UDP case is used in both sides (sending, listening)
 } Tpthread_args;
 
-
 /**
  * Print error message.
  */
@@ -64,7 +73,6 @@ void error(int code, string msg) {
 	cerr<<msg<< endl;
 	exit(code);
 }
-
 
 /**
  * Node structure.
@@ -89,6 +97,14 @@ enum ecodes {
   EFILE = 6,
   ETHREAD = 7,
   ETHREAD_CREATE = 8
+};
+
+/**
+ * Transfer file modes.
+ */
+enum modes {
+  READ = 0,
+  WRITE = 1
 };
 
 /**
@@ -173,7 +189,7 @@ void* handleServer(void *threadarg) {
   //struct node node = (struct node) pthread_args->params->nodes[pthread_args->node_index];
   //struct addrinfo *addrinfo = pthread_args->addrinfo;
   //TParams* params = (TParams*) pthread_args->params;
-  //int sock = pthread_args->sock;
+  int client_socket = pthread_args->sock;
   int node_index = pthread_args->node_index;
 
   /*struct sockaddr_storage serverStorage;
@@ -190,6 +206,150 @@ void* handleServer(void *threadarg) {
 
   cout << "WHEEEE4\n" << endl;
   cout << node_index << endl;
+
+  // prijem
+  ssize_t recv_len;
+  char buffer[BUFFER_SIZE];
+
+  recv_len = recv(client_socket, buffer, 1+sizeof(int), 0);
+
+  if (recv_len != 1+sizeof(int))
+  {
+    cerr << "chyba prijmu hlavicky" << endl;
+    char status = HEADER_ERROR;
+    send(client_socket, &status, 1, 1);
+    cout << "child dying, pid: " << getpid() << endl;
+    close(client_socket);
+    exit(0);
+  }
+
+  char mode = buffer[0];
+  int filepath_len;
+  memcpy(&filepath_len, buffer+1, sizeof(int));
+
+  // prijeti zbytku hlavicky (nazev souboru)
+  recv_len = recv(client_socket, buffer, filepath_len, 0);
+
+  if (recv_len != filepath_len)
+  {
+    cerr << "chyba prijmu hlavicky" << endl;
+    char status = HEADER_ERROR;
+    send(client_socket, &status, 1, 1);
+    cout << "child dying, pid: " << getpid() << endl;
+    close(client_socket);
+    exit(0);
+  }
+
+  buffer[filepath_len] = '\0';
+
+  string filepath = buffer;
+
+  if (mode == WRITE)
+  {
+    ofstream output_file;
+
+    output_file.open(filepath.c_str(), fstream::out | fstream::binary);
+
+    if (!output_file.is_open())
+    {
+      cerr << "cannot write to: " + filepath << endl;
+      char status = CANNOT_WRITE;
+      send(client_socket, &status, 1, 0);
+      cout << "child dying, pid: " << getpid() << endl;
+      close(client_socket);
+      exit(0);
+    }
+    else
+    {
+      char status = OK;
+      // C++ knihovna na eve bohuzel nepodporuje filedesc()
+      /*if (flock(output_file.filedesc(), LOCK_EX | LOCK_NB) != 0)  // zapis -> exkluzivni zamek
+      {
+        cerr << "soubor '" + filepath + "' nemohl byt zamcen" << endl;
+        status = ALREADY_USED;
+      }*/
+
+      send(client_socket, &status, 1, 0);
+
+      long celkem = 0;
+
+      cout << "Prijimam soubor: '" << filepath << "'" << endl;
+      do {
+      recv_len = recv(client_socket, buffer, BUFFER_SIZE, 0);
+      celkem += recv_len;
+
+      output_file.write(buffer, recv_len);
+
+      if (recv_len == 0)
+        cout << "Konec prenosu. Celkem prijato: " << celkem << " B" << endl ;
+
+      if (recv_len == -1)
+        cerr << "Chyba prenosu!" << endl ;
+
+      } while (recv_len > 0);
+
+      //flock(output_file.filedesc(), LOCK_UN);
+      output_file.close();
+    }
+  }
+  else if (mode == READ)
+  {
+    ifstream input_file;
+
+    input_file.open(filepath.c_str(), fstream::in | fstream::binary);
+
+    if (!input_file.is_open())
+    {
+      cerr << filepath + "does not exist" << endl;
+      char status = DOES_NOT_EXIST;
+      send(client_socket, &status, 1, 0);
+      cout << "child dying, pid: " << getpid() << endl;
+      close(client_socket);
+      exit(0);
+    }
+    else
+    {
+      char status = OK;
+      /*if (flock(input_file.filedesc(), LOCK_SH | LOCK_NB) != 0)  // cteni -> sdileny zamek (ale nedovoli zapsat)
+      {
+        cerr << "soubor '" + filepath + "' nemohl byt zamcen" << endl;
+        status = ALREADY_USED;
+      }*/
+
+      send(client_socket, &status, 1, 0);
+
+      long celkem = 0;
+      long file_size = 0;
+
+      input_file.seekg(0, input_file.end);   // nastaveni ukazatele na konec souboru
+      file_size = input_file.tellg();        // ziskani pozice ukazatele (== velikost souboru)
+      input_file.seekg(0, input_file.beg);   // nastaveni zpet na zacatek
+
+      cout << "Posilam soubor: '" << filepath << "' Velikost: " << file_size << " B" << endl;
+      while(input_file.read(buffer, BUFFER_SIZE))
+      {
+        send(client_socket, buffer, BUFFER_SIZE, 0);
+        celkem += input_file.gcount();
+        //cout << input_file.gcount() << " B odeslano. Celkem: " << celkem << " B z " << file_size << " B" << endl;
+      }
+
+      send(client_socket, buffer, input_file.gcount(), 0);
+      celkem += input_file.gcount();
+      cout << "Celkem odeslano: " << celkem << " B z " << file_size << " B" << endl;
+
+      //flock(input_file.filedesc(), LOCK_UN);
+      input_file.close();
+    }
+  }
+  else
+  {
+    char status = HEADER_ERROR;
+    send(client_socket, &status, 1, 1);
+  }
+
+  cout << "child dying, pid: " << getpid() << endl;
+  close(client_socket);
+  exit(0);
 
   // install signal handler for CTRL+C
   /*signal(SIGINT, catchsignal);

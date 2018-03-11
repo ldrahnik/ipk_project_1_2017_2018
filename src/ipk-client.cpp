@@ -179,7 +179,7 @@ TParams getParams(int argc, char *argv[]) {
 	if(params.host.empty())
 		error(1, "Hostname is required.");
   if(params.mode == -1)
-    error(1, "Mode (write orwelcome_socket read) is required");
+    error(1, "Mode (write or read) is required");
   if(params.mode == WRITE && params.filepath.empty())
     error(1, "Write file is required.");
 
@@ -222,13 +222,38 @@ int main(int argc, char *argv[]) {
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
-  if(getaddrinfo(params.host.c_str(), NULL, &hints, &results) != 0) {
+  //hints.ai_flags = AI_PASSIVE;
+  if(getaddrinfo(params.host.c_str(), params.port.c_str(), &hints, &results) != 0) {
     error(1, "Host is not valid.\n");
     return EGETADDRINFO;
   }
 
   fprintf(stderr, "WHEEE \n");
+
+
+  //int sock;
+  //struct addrinfo host_info;
+  /*struct addrinfo *host_ips, *rp;
+
+  int s;
+  if ( (s = getaddrinfo(hostname.c_str(), port.c_str(), &host_info, &host_ips)) != 0 )
+  {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+  	error(2, "Chyba ziskani adresy z hostname.");
+  }
+
+	//getaddrinfo() vraci seznam adress -> zkousime, nez se povede pripojit
+	for (rp = host_ips; rp != NULL; rp = rp->ai_next)
+	{
+		sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+		if (sock == -1)
+			continue;
+
+		if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+			break;  // bind se povedl -> konec
+		else
+			close(sock);
+	}*/
 
   // create socket
   if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1) {
@@ -249,7 +274,13 @@ int main(int argc, char *argv[]) {
     memcpy(buffer+1, &len, sizeof(int));
     params.filepath.copy(buffer+1+sizeof(int), len);
 
-    send(sock, buffer, 1+sizeof(int)+len, 0);
+    fprintf(stderr, "WHEEE3 \n");
+
+    int result = send(sock, buffer, 1+sizeof(int)+len, 0);
+
+    cout << result << endl;
+
+    fprintf(stderr, "WHEEE4 \n");
 
     // cekani na status report
     int recv_len;
@@ -277,6 +308,10 @@ int main(int argc, char *argv[]) {
     cout << "Posilam soubor: '" << file << "' Velikost: " << file_size << " B" << endl;
     while(file.read(buffer, BUFFER_SIZE))  // dokud se z file nacte cela BUFFER_SIZE
     {
+      // CTRL+C handler
+      if(G_break == 1)
+        break;
+
       send(sock, buffer, BUFFER_SIZE, 0);
       celkem += file.gcount();
       cout << file.gcount() << " B odeslano. Celkem: " << celkem << " B z " << file_size << " B" << endl;
@@ -287,7 +322,63 @@ int main(int argc, char *argv[]) {
     cout << file.gcount() << " B odeslano. Celkem: " << celkem << " B z " << file_size << " B" << endl;
 
     file.close();
-  }
+  } // download
+	{
+		char buffer[BUFFER_SIZE];
+
+		int len = params.filepath.length();
+
+		// posilani hlavicky
+		buffer[0] = READ;
+		memcpy(buffer+1, &len, sizeof(int));
+		params.filepath.copy(buffer+1+sizeof(int), len);
+
+		send(sock, buffer, 1+sizeof(int)+len, 0);
+
+		// cekani na status report
+		int recv_len;
+		char status = 99;
+
+		recv_len = recv(sock, &status, 1, 0);
+
+		if (recv_len != 1)
+			error(6, "chyba prijmu odpovedi na hlavicku");
+		if (status == DOES_NOT_EXIST)
+			error(10, "pozadovany soubor na serveru neexistuje!");
+		if (status == HEADER_ERROR)
+			error(6, "chyba odeslane hlavicky");
+		if (status != OK)
+			error(99, "neznama chyba serveru");
+
+		// prijimani dat
+		long celkem = 0;
+
+		cout << "Prijimam soubor: '" << params.filepath << "'" << endl;
+		do {
+      // CTRL+C handler
+      if(G_break == 1)
+        break;
+
+    recv_len = recv(sock, buffer, BUFFER_SIZE, 0);
+
+    file.write(buffer, recv_len);
+
+    if (recv_len == 0)
+    {
+    	cout << "Konec prenosu. Celkem preneseno: " << celkem << " B" << endl ;
+    	break;
+    }
+
+    if (recv_len == -1)
+    	cerr << "Chyba prenosu!" << endl ;
+
+    celkem += recv_len;
+    cout << recv_len << " B prijato. Celkem: " << celkem << " B" << endl ;
+    } while (true);
+
+		file.close();
+
+	}
 
 	close(sock);
   clean();
