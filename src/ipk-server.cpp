@@ -25,6 +25,7 @@
 #include <arpa/inet.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
+#include <sys/file.h>
 
 #include <fstream>
 
@@ -33,12 +34,6 @@ using namespace std;
 #define MAX_CLIENTS 128
 
 #define BUFFER_SIZE 1448
-
-#define OK 0
-#define DOES_NOT_EXIST 1
-#define CANNOT_WRITE 2
-#define HEADER_ERROR 3
-#define ALREADY_USED 4
 
 /**
  * When is pressed ctrl+c.
@@ -63,7 +58,7 @@ typedef struct pthread_args {
   struct params *params;
   int node_index;                     // start index is 0
   struct addrinfo *addrinfo;
-  int sock;                           // in UDP case is used in both sides (sending, listening)
+  int sock;
 } Tpthread_args;
 
 /**
@@ -71,17 +66,8 @@ typedef struct pthread_args {
  */
 void error(int code, string msg) {
 	cerr<<msg<< endl;
-	exit(code);
+  exit(code);
 }
-
-/**
- * Node structure.
- */
-typedef struct node {
-  char* node;         // IPv4/IPv6/hostname adresa uzlu
-  int ecode;          // error code
-  float specific_rtt; // <uzel;RTT> default value is -1
-} TNode;
 
 /**
  * Error codes.
@@ -96,7 +82,14 @@ enum ecodes {
   ELISTEN = 5,
   EFILE = 6,
   ETHREAD = 7,
-  ETHREAD_CREATE = 8
+  ETHREAD_CREATE = 8,
+
+  /*#define OK 0
+  #define DOES_NOT_EXIST 1
+  #define CANNOT_WRITE 2*/
+  EOPEN_FILE = 100,
+  EHEADER = 101,
+  ELOCK_FILE = 102
 };
 
 /**
@@ -120,12 +113,10 @@ void catchsignal(int sig) {
  * Terminal parameters:
  */
 typedef struct params {
-  string port;                           // option p
-  int ecode;                             // error code
+  string port;
+  int ecode;
   int nodes_count;
-  struct node *nodes;
 } TParams;
-
 
 /**
  * Get TParams structure from terminal options, option arguments and nodes.
@@ -174,291 +165,177 @@ TParams getParams(int argc, char *argv[]) {
  *
  * @return void
  */
-void clean() {
-
+void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]) {
+  for(int index = 0; index < params->nodes_count; index++) {
+    close(threads_args[index]->sock);
+    free(threads_args[index]->addrinfo);
+    delete threads_args[index];
+  }
+  freeaddrinfo(addrinfo);
+  //delete params->nodes;
 }
 
+void serverError(TParams* params, int node_index, int client_sock, int code, string msg) {
+	cerr<<msg<<endl;
+  cout<<"[CLIENT #"<<node_index<<"] Is leaving with error\n"<<endl;
+  close(client_sock);
+  params->nodes_count--;
+}
 
-/**
- * @return void*
- */
+void serverEnd(TParams* params, int node_index, int client_sock) {
+  cout<<"[CLIENT #"<<node_index<<"] Is leaving without error\n"<<endl;
+  close(client_sock);
+  params->nodes_count--;
+}
+
 void* handleServer(void *threadarg) {
-  //TParams *params = (TParams *) threadarg;
+  int ecode = EOK;
 
   struct pthread_args *pthread_args = (struct pthread_args *) threadarg;
   //struct node node = (struct node) pthread_args->params->nodes[pthread_args->node_index];
   //struct addrinfo *addrinfo = pthread_args->addrinfo;
-  //TParams* params = (TParams*) pthread_args->params;
-  int client_socket = pthread_args->sock;
+  TParams* params = (TParams*) pthread_args->params;
+  int client_sock = pthread_args->sock;
   int node_index = pthread_args->node_index;
-
-  /*struct sockaddr_storage serverStorage;
-  socklen_t addr_size;
-  addr_size = sizeof serverStorage;
-
-  struct sockaddr_in6 server_addr;
-  char buffer[IP_MAXPACKET];
-  int sock;
-  long recv_len;
-  struct timeval tv;
-
-  fd_set my_set;*/
-
-  cout << "WHEEEE4\n" << endl;
-  cout << node_index << endl;
-
-  // prijem
   ssize_t recv_len;
   char buffer[BUFFER_SIZE];
-
-  recv_len = recv(client_socket, buffer, 1+sizeof(int), 0);
-
-  if (recv_len != 1+sizeof(int))
-  {
-    cerr << "chyba prijmu hlavicky" << endl;
-    char status = HEADER_ERROR;
-    send(client_socket, &status, 1, 1);
-    cout << "child dying, pid: " << getpid() << endl;
-    close(client_socket);
-    exit(0);
-  }
-
   char mode = buffer[0];
   int filepath_len;
-  memcpy(&filepath_len, buffer+1, sizeof(int));
 
-  // prijeti zbytku hlavicky (nazev souboru)
-  recv_len = recv(client_socket, buffer, filepath_len, 0);
+  cout<<"[CLIENT #"<<node_index<<"] Is starting\n"<<endl;
 
-  if (recv_len != filepath_len)
-  {
-    cerr << "chyba prijmu hlavicky" << endl;
-    char status = HEADER_ERROR;
-    send(client_socket, &status, 1, 1);
-    cout << "child dying, pid: " << getpid() << endl;
-    close(client_socket);
-    exit(0);
+  recv_len = recv(client_sock, buffer, 1+sizeof(int), 0);
+
+  // header (size of file)
+  if(recv_len != 1 + sizeof(int)) {
+    ecode = EHEADER;
+    send(client_sock, &ecode, 1, 0);
+    serverError(params, node_index, client_sock, EHEADER, "Header error.");
+    pthread_exit(NULL);
   }
 
-  buffer[filepath_len] = '\0';
+  // size of file
+  memcpy(&filepath_len, buffer+1, sizeof(int));
 
+  // rest of header (filename)
+  recv_len = recv(client_sock, buffer, filepath_len, 0);
+
+  if(recv_len != filepath_len) {
+    ecode = EHEADER;
+    send(client_sock, &ecode, 1, 0);
+    serverError(params, node_index, client_sock, EHEADER, "Header error.");
+    pthread_exit(NULL);
+  }
+
+  // filename
+  buffer[filepath_len] = '\0';
   string filepath = buffer;
 
-  if (mode == WRITE)
-  {
+  // write
+  if(mode == WRITE) {
+
+    // opening file failed
     ofstream output_file;
-
-    output_file.open(filepath.c_str(), fstream::out | fstream::binary);
-
-    if (!output_file.is_open())
-    {
-      cerr << "cannot write to: " + filepath << endl;
-      char status = CANNOT_WRITE;
-      send(client_socket, &status, 1, 0);
-      cout << "child dying, pid: " << getpid() << endl;
-      close(client_socket);
-      exit(0);
+    output_file.open(basename(filepath.c_str()), fstream::out | fstream::binary);
+    if(!output_file.is_open()) {
+      ecode = EOPEN_FILE;
+      send(client_sock, &ecode, 1, 0);
+      serverError(params, node_index, client_sock, EOPEN_FILE, "Server can not open: " + filepath);
+      pthread_exit(NULL);
     }
-    else
-    {
-      char status = OK;
-      // C++ knihovna na eve bohuzel nepodporuje filedesc()
-      /*if (flock(output_file.filedesc(), LOCK_EX | LOCK_NB) != 0)  // zapis -> exkluzivni zamek
-      {
-        cerr << "soubor '" + filepath + "' nemohl byt zamcen" << endl;
-        status = ALREADY_USED;
-      }*/
 
-      send(client_socket, &status, 1, 0);
+    // lock file
+    /*if(flock(output_file.filedesc(), LOCK_EX | LOCK_NB) != 0) {
+      ecode = ELOCK_FILE;
+      send(client_sock, &ecode, 1, 0);
+      serverError(params, node_index, client_sock, ELOCK_FILE, "Server can not lock: " + basename(filepath));
+    }*/
 
-      long celkem = 0;
+    // opened, locked => OK
+    send(client_sock, &ecode, 1, 0);
 
-      cout << "Prijimam soubor: '" << filepath << "'" << endl;
-      do {
-      recv_len = recv(client_socket, buffer, BUFFER_SIZE, 0);
-      celkem += recv_len;
+    cout<<"[CLIENT #"<<node_index<<"] Is receiving filename: '"<<basename(filepath.c_str())<<"'"<<endl;
+
+    long total_received = 0;
+    do {
+      if((recv_len = recv(client_sock, buffer, BUFFER_SIZE, 0)) == -1) {
+        cerr<<"WHAAAEE ERROR RECV!" << endl; // TODO:
+      }
+      //cout<<"[CLIENT #"<<node_index<<"]"<<output_file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<filepath_len<<" B"<<endl;
+
+      total_received += recv_len;
 
       output_file.write(buffer, recv_len);
 
-      if (recv_len == 0)
-        cout << "Konec prenosu. Celkem prijato: " << celkem << " B" << endl ;
+      if(recv_len == 0)
+        cout<<"[CLIENT #"<<node_index<<"] Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
 
-      if (recv_len == -1)
-        cerr << "Chyba prenosu!" << endl ;
+    } while (recv_len > 0);
 
-      } while (recv_len > 0);
+    // close file
+    output_file.close();
 
-      //flock(output_file.filedesc(), LOCK_UN);
-      output_file.close();
-    }
+    // unlock file
+    //flock(output_file.filedesc(), LOCK_UN);
   }
-  else if (mode == READ)
-  {
+  // read
+  else if (mode == READ) {
+
+    // opening file failed
     ifstream input_file;
-
     input_file.open(filepath.c_str(), fstream::in | fstream::binary);
-
-    if (!input_file.is_open())
-    {
-      cerr << filepath + "does not exist" << endl;
-      char status = DOES_NOT_EXIST;
-      send(client_socket, &status, 1, 0);
-      cout << "child dying, pid: " << getpid() << endl;
-      close(client_socket);
-      exit(0);
-    }
-    else
-    {
-      char status = OK;
-      /*if (flock(input_file.filedesc(), LOCK_SH | LOCK_NB) != 0)  // cteni -> sdileny zamek (ale nedovoli zapsat)
-      {
-        cerr << "soubor '" + filepath + "' nemohl byt zamcen" << endl;
-        status = ALREADY_USED;
-      }*/
-
-      send(client_socket, &status, 1, 0);
-
-      long celkem = 0;
-      long file_size = 0;
-
-      input_file.seekg(0, input_file.end);   // nastaveni ukazatele na konec souboru
-      file_size = input_file.tellg();        // ziskani pozice ukazatele (== velikost souboru)
-      input_file.seekg(0, input_file.beg);   // nastaveni zpet na zacatek
-
-      cout << "Posilam soubor: '" << filepath << "' Velikost: " << file_size << " B" << endl;
-      while(input_file.read(buffer, BUFFER_SIZE))
-      {
-        send(client_socket, buffer, BUFFER_SIZE, 0);
-        celkem += input_file.gcount();
-        //cout << input_file.gcount() << " B odeslano. Celkem: " << celkem << " B z " << file_size << " B" << endl;
-      }
-
-      send(client_socket, buffer, input_file.gcount(), 0);
-      celkem += input_file.gcount();
-      cout << "Celkem odeslano: " << celkem << " B z " << file_size << " B" << endl;
-
-      //flock(input_file.filedesc(), LOCK_UN);
-      input_file.close();
-    }
-  }
-  else
-  {
-    char status = HEADER_ERROR;
-    send(client_socket, &status, 1, 1);
-  }
-
-  cout << "child dying, pid: " << getpid() << endl;
-  close(client_socket);
-  exit(0);
-
-  // install signal handler for CTRL+C
-  /*signal(SIGINT, catchsignal);
-
-  int index;
-  pthread_t threads[params.nodes_count];
-  Tpthread_args* threads_args[params.nodes_count];
-
-  while(true) {
-
-    // CTRL+C handler
-    if(G_break == 1) {
-      break;
+    if(!input_file.is_open()) {
+      ecode = EOPEN_FILE;
+      send(client_sock, &ecode, 1, 0);
+      serverError(params, node_index, client_sock, EOPEN_FILE, "Server can not open: " + filepath);
+      pthread_exit(NULL);
     }
 
-    // create Tpthread_args
-    Tpthread_args* threadarg = new Tpthread_args();
-    threadarg->params = &params;
-    threadarg->node_index = index;
-    threadarg->addrinfo = results;
-    threads_args[index] = threadarg;
+    // lock file
+    /*if(flock(input_file.filedesc(), LOCK_SH | LOCK_NB) != 0) {
+      ecode = ELOCK_FILE;
+      send(client_sock, &ecode, 1, 0);
+      serverError(params, node_index, client_sock, ELOCK_FILE, "Server can not lock: " + filepath);
+      pthread_exit(NULL);
+    }*/
 
-    int sock;
-    if((sock = socket(PF_INET6, SOCK_DGRAM, 0)) == -1) {
-      fprintf(stderr, "Socket can not be created.\n");
-      ecode = ESOCKET;
-      break;
+    // opened, locked => OK
+    send(client_sock, &ecode, 1, 0);
+
+    long total_sent = 0;
+    long file_size = 0;
+
+    input_file.seekg(0, input_file.end);   // nastaveni ukazatele na konec souboru
+    file_size = input_file.tellg();        // ziskani pozice ukazatele (== velikost souboru)
+    input_file.seekg(0, input_file.beg);   // nastaveni zpet na zacatek
+
+    cout<<"[CLIENT #"<<node_index<<"] Is sending filename: '"<<basename(filepath.c_str())<<"', Velikost: "<<file_size<<" B"<<endl;
+
+    while(input_file.read(buffer, BUFFER_SIZE)) {
+      send(client_sock, buffer, BUFFER_SIZE, 0);
+      total_sent += input_file.gcount();
+      cout<<"[CLIENT #"<<node_index<<"]"<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
-    threadarg->sock = sock;
 
-    if(pthread_create(&threads[index], NULL, handleSever, (void *) threadarg) != 0) {
-      fprintf(stderr, "Error: unable to create thread %i.\n", index);
-      ecode = ETHREAD;
-      break;
-    }
-  }*/
+    send(client_sock, buffer, input_file.gcount(), 0);
+    total_sent += input_file.gcount();
+    cout<<"[CLIENT #"<<node_index<<"] Transmition ended. Total number of sent bytes: "<<total_sent<< " B / "<<file_size<<" B"<<endl;
 
-  // create socket
-  /*if((sock = socket(PF_INET6, SOCK_DGRAM, 0)) < 0) {
-    fprintf(stderr, "Socket can not be created. Run program as sudo.\n");
+    // close file
+    input_file.close();
 
+    // unlock file
+    //flock(input_file.filedesc(), LOCK_UN);
+
+  // else
+  } else {
+    ecode = EHEADER;
+    send(client_sock, &ecode, 1, 0);
+    serverError(params, node_index, client_sock, EHEADER, "Header error. Mode could not be recognized.");
     pthread_exit(NULL);
   }
 
-  memset((char *)&server_addr, 0, sizeof(server_addr));
-  server_addr.sin6_family = AF_INET6;
-  server_addr.sin6_addr = in6addr_any;
-  server_addr.sin6_port = htons(params->port);
-
-  int no = 0;
-  if(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&no, sizeof(no))) {
-    fprintf(stderr, "setsockopt() for IPV6_V6ONLY error.\n");
-
-    // close sock
-    close(sock);
-
-    pthread_exit(NULL);
-  }
-
-  // install signal handler for CTRL+C
-  signal(SIGINT, catchsignal);
-
-  if(bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-    fprintf(stderr, "Socket can not be binded. Port is probably already in use.\n");
-
-    // close sock
-    close(sock);
-
-    pthread_exit(NULL);
-  }
-
-  while(true) {
-
-    // CTRL+C handler
-    if(G_break == 1) {
-      break;
-    }
-
-    FD_ZERO(&my_set);
-    FD_SET(sock, &my_set);
-    if(select(sock + 1, &my_set, NULL, NULL, &tv) < 0) {
-      fprintf(stderr, "Select failed.\n");
-      break;
-    }
-    if(FD_ISSET(sock, &my_set)) {
-
-      if((recv_len = recvfrom(sock, buffer, IP_MAXPACKET, 0, (struct sockaddr *)&serverStorage, &addr_size)) == -1) {
-        fprintf(stderr, "Error during recvfrom: %s\n", strerror(errno));
-
-        // close sock
-        close(sock);
-
-        pthread_exit(NULL);
-      }
-
-      if(sendto(sock, buffer, recv_len, 0, (struct sockaddr *)&serverStorage, addr_size) == -1) {
-        fprintf(stderr, "Error during sendto: %s\n", strerror(errno));
-
-        // close sock
-        close(sock);
-
-        pthread_exit(NULL);
-      }
-    }
-  }*/
-
-  // close
-  //close(sock);
-
+  serverEnd(params, node_index, client_sock);
   pthread_exit(NULL);
 }
 
@@ -472,12 +349,15 @@ void* handleServer(void *threadarg) {
  */
 int main(int argc, char *argv[]) {
   int ecode = EOK;
-  int sock;
+  int sock, client_sock;
   struct addrinfo* results;
   struct addrinfo hints;
-  //pthread_t thread;
+  struct sockaddr_storage client_addr;
+  socklen_t addr_size = sizeof(client_addr);
+  pthread_t threads[MAX_CLIENTS];
+  Tpthread_args* threads_args[MAX_CLIENTS];
 
-  // parsing parameters
+  // get args
   TParams params = getParams(argc, argv);
   if(params.ecode != EOK) {
     cout<<HELP_MSG<<endl;
@@ -490,38 +370,23 @@ int main(int argc, char *argv[]) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  if(getaddrinfo(NULL, params.port.c_str(), &hints, &results) != 0) {
-    error(1, "Host is not valid.\n");
-    return EGETADDRINFO;
-  }
+  // get addrinfo
+  if(getaddrinfo(NULL, params.port.c_str(), &hints, &results) != 0)
+    error(EGETADDRINFO, "Host is not valid.\n");
 
   // create socket
-  if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1) {
-    error(1, "Socket can not be created.\n");
-    return ESOCKET;
-  }
+  if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1)
+    error(ESOCKET, "Socket can not be created.\n");
 
-  fprintf(stderr, "WHEEE \n");
+  // bind socket
+  if(bind(sock, results->ai_addr, results->ai_addrlen) != 0)
+    error(EBIND, "Bind failed.");
 
-  // bind on socket
-  if(bind(sock, results->ai_addr, results->ai_addrlen) != 0) {
-    error(1, "Bind failed.");
-    return EBIND;
-  }
+  // listen
+  if(listen(sock, MAX_CLIENTS) < 0)
+		error(ELISTEN, "Listen failed.");
 
-  fprintf(stderr, "WHEEE2 \n");
-
-  if(listen(sock, MAX_CLIENTS) < 0) {
-		error(1, "Listen failed.");
-    return ELISTEN;
-  }
-
-  fprintf(stderr, "WHEEE3 \n");
-
-  cout << "DEBUG: Server bezi, port: " << params.port << "\n" << endl;
-
-  pthread_t threads[MAX_CLIENTS];
-  Tpthread_args* threads_args[MAX_CLIENTS];
+  cout<<"[SERVER] Server is running on port: "<<params.port<<"\n"<<endl;
 
   while(true) {
 
@@ -529,59 +394,34 @@ int main(int argc, char *argv[]) {
     if(G_break == 1)
       break;
 
+    // create client socket
+    if((client_sock = accept(sock, (struct sockaddr *) &client_addr, &addr_size)) <= 0)
+      continue;
+
+    cout<<"[SERVER] Joined client. Started handling personal thread with number: "<<params.nodes_count<<"\n"<<endl;
+
     // create Tpthread_args
     Tpthread_args* threadarg = new Tpthread_args();
     threadarg->params = &params;
     threadarg->node_index = params.nodes_count;
     threadarg->addrinfo = results;
-
     threads_args[params.nodes_count] = threadarg;
+    threadarg->sock = client_sock;
 
-    struct sockaddr_storage client_addr;
-    socklen_t addr_size = sizeof(client_addr);
+    // pthread per client
+    if(pthread_create(&threads[params.nodes_count], NULL, handleServer, (void *) threadarg) != 0)
+      error(ETHREAD, "Unable to create thread.\n");
 
-    int client_socket = accept(sock, (struct sockaddr *) &client_addr, &addr_size);
-
-    if(client_socket <= 0)
-      continue;
-
-    threadarg->sock = client_socket;
-
-    cout<< params.nodes_count << endl;
-
+    // increment client pthreads
     params.nodes_count++;
-
-    if(pthread_create(&threads[params.nodes_count], NULL, handleServer, (void *) threadarg) != 0) {
-      error(1, "Unable to create thread.\n");
-      ecode = ETHREAD;
-      break;
-    }
   }
 
   // wait for all child node's
-  for(int index = 0; index < params.nodes_count; index++) {
+  for(int index = 0; index < params.nodes_count; index++)
     pthread_join(threads[index], NULL);
-  }
 
   // clean
-  freeaddrinfo(results);
-
-  for (int index = 0; index < params.nodes_count; index++) {
-
-    // close sock
-    close(threads_args[index]->sock);
-
-    // free node addrinfo struct
-    freeaddrinfo(threads_args[index]->addrinfo);
-
-    // delete ThreadArgs[] (created with new)
-    delete threads_args[index];
-  }
-
-  // delete TNode[] (created with new)
-  delete params.nodes;
-
-  clean();
+  clean(&params, results, threads_args);
 
   return ecode;
 }

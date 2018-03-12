@@ -197,10 +197,12 @@ TParams getParams(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
   int ecode = EOK;
   int sock;
-
-  struct addrinfo* results;
-  struct addrinfo hints;
-
+  struct addrinfo host_info;
+  struct addrinfo *host_ips, *rp;
+  memset(&host_info, 0, sizeof host_info);
+  host_info.ai_family = AF_INET;
+  host_info.ai_socktype = SOCK_STREAM;
+  
   // parsing parameters
   TParams params = getParams(argc, argv);
   if(params.ecode != EOK) {
@@ -212,56 +214,23 @@ int main(int argc, char *argv[]) {
   fstream file;
   if(params.mode == WRITE && !params.filepath.empty()) {
     file.open(params.filepath.c_str(), fstream::in | fstream::binary);
-    if(!file.is_open()) {
-      error(1, "Error opening file to write on server: " + params.filepath);
-      return EFILE;
-    }
+    if(!file.is_open())
+      error(EFILE, "Error opening file to write on server: " + params.filepath);
   }
 
-  // addrinfo from given host
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  //hints.ai_flags = AI_PASSIVE;
-  if(getaddrinfo(params.host.c_str(), params.port.c_str(), &hints, &results) != 0) {
-    error(1, "Host is not valid.\n");
-    return EGETADDRINFO;
-  }
+  // try get addrinfo
+  if((getaddrinfo(params.host.c_str(), params.port.c_str(), &host_info, &host_ips)) != 0)
+		error(EGETADDRINFO, "Hostname address is not valid.");
 
-  fprintf(stderr, "WHEEE \n");
-
-
-  //int sock;
-  //struct addrinfo host_info;
-  /*struct addrinfo *host_ips, *rp;
-
-  int s;
-  if ( (s = getaddrinfo(hostname.c_str(), port.c_str(), &host_info, &host_ips)) != 0 )
-  {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-  	error(2, "Chyba ziskani adresy z hostname.");
-  }
-
-	//getaddrinfo() vraci seznam adress -> zkousime, nez se povede pripojit
-	for (rp = host_ips; rp != NULL; rp = rp->ai_next)
-	{
-		sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-		if (sock == -1)
-			continue;
-
-		if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
-			break;  // bind se povedl -> konec
+	// create socket, connect on given addres
+	for (rp = host_ips; rp != NULL; rp = rp->ai_next) {
+    if((sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) == -1)
+      continue;
+		if(connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+			break;
 		else
 			close(sock);
-	}*/
-
-  // create socket
-  if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1) {
-    error(1, "Socket can not be created.\n");
-    return ESOCKET;
-  }
-
-  fprintf(stderr, "WHEEE2 \n");
+	}
 
   // write = upload
   if(params.mode == WRITE) {
@@ -269,18 +238,11 @@ int main(int argc, char *argv[]) {
 
 		int len = params.filepath.length();
 
-    // hlavicka bude obsahovat 1 bajt s informaci o modu a pak 4 bajty (int) s delkou nazvu souboru - server bude vedet, kolik prijmout, nez zacnou chodit data
     buffer[0] = params.mode;
     memcpy(buffer+1, &len, sizeof(int));
     params.filepath.copy(buffer+1+sizeof(int), len);
 
-    fprintf(stderr, "WHEEE3 \n");
-
-    int result = send(sock, buffer, 1+sizeof(int)+len, 0);
-
-    cout << result << endl;
-
-    fprintf(stderr, "WHEEE4 \n");
+    send(sock, buffer, 1 + sizeof(int)+len, 0);
 
     // cekani na status report
     int recv_len;
@@ -306,8 +268,8 @@ int main(int argc, char *argv[]) {
 
     // posilani dat
     cout << "Posilam soubor: '" << file << "' Velikost: " << file_size << " B" << endl;
-    while(file.read(buffer, BUFFER_SIZE))  // dokud se z file nacte cela BUFFER_SIZE
-    {
+    while(file.read(buffer, BUFFER_SIZE)) { // dokud se z file nacte cela BUFFER_SIZE
+
       // CTRL+C handler
       if(G_break == 1)
         break;
