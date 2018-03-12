@@ -1,0 +1,4 @@
+- možnost rozšíření funkčnosti i na IPv6 (netestována)
+- možnost přidání přeposlání hlavičky s informací o velikosti zpátky na klienta při módu read (při módu write již naimplementováno, klient posílá serveru velikost souboru pro kontrolu), aby klient věděl, že soubor, který obdržel má správnou velikost
+- nemožnost navázání přerušeného přenosu
+- možnost rozšíření o zámky na soubory

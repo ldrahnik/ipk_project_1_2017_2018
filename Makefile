@@ -8,10 +8,11 @@
 CLIENT_NAME     		= ipk-client
 CLIENT_SOURCES  		= src/ipk-client.cpp
 CLIENT_OBJECTS  		= $(CLIENT_SOURCES:.cpp=.o)
-CLIENT_DOC					= doc/manual.pdf
+PROJECT_DOC					= doc/manual.pdf
+PROJECT_README			= Readme.md
 
 CC              		= g++
-CFLAGS 							= -Wall -pedantic -pthread # -Wextra -pthread
+CFLAGS 							= -Wall -pedantic -pthread # -Wextra
 
 ############################################ SERVER
 
@@ -20,7 +21,7 @@ SERVER_SOURCES  		= src/ipk-server.cpp
 SERVER_OBJECTS  		= $(SERVER_SOURCES:.cpp=.o)
 
 CC              		= g++
-CFLAGS 							= -Wall -pedantic -pthread # -Wextra -pthread
+CFLAGS 							= -Wall -pedantic -pthread # -Wextra
 
 ############################################ MAKE CLEAN
 
@@ -41,7 +42,7 @@ rebuild:	clean all
 ############################################ COMPRESS
 
 LOGIN = xdrahn00
-FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES)
+FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROJECT_DOC) $(PROJECT_README)
 
 tar:
 	tar -cvzf $(LOGIN).tar $(FILES)

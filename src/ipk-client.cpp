@@ -39,14 +39,7 @@
 
 using namespace std;
 
-#define OK 0
-#define DOES_NOT_EXIST 1
-#define CANNOT_WRITE 2
-#define HEADER_ERROR 3
-#define ALREADY_USED 4
-
 #define BUFFER_SIZE 1448
-
 #define MAX_CLIENTS 128
 
 /**
@@ -71,14 +64,22 @@ const char *HELP_MSG = {
  * Error codes.
  */
 enum ecodes {
-  EOK = 0,               // ok
+  EOK = 0,               // ok, even used in protocol error
   EOPT = 1,              // invalid option (option argument is missing,
                          // unknown option, unknown option character)
   EGETADDRINFO = 2,
   ESOCKET = 3,
   EBIND = 4,
   ELISTEN = 5,
-  EFILE = 6
+  EFILE = 6,
+
+
+  // protocol error codes
+  EOPEN_FILE = 100,
+  EHEADER = 101,
+  ELOCK_FILE = 102,
+  EFILE_CONTENT = 103,
+  EUNKNOWN = 99
 };
 
 /**
@@ -175,13 +176,13 @@ TParams getParams(int argc, char *argv[]) {
   }
 
   if(params.port.empty())
-		error(1, "Port is required.");
+		error(EOPT, "Port is required.");
 	if(params.host.empty())
-		error(1, "Hostname is required.");
+		error(EOPT, "Hostname is required.");
   if(params.mode == -1)
-    error(1, "Mode (write or read) is required");
+    error(EOPT, "Mode (write or read) is required");
   if(params.mode == WRITE && params.filepath.empty())
-    error(1, "Write file is required.");
+    error(EOPT, "Write file is required.");
 
   return params;
 }
@@ -202,7 +203,8 @@ int main(int argc, char *argv[]) {
   memset(&host_info, 0, sizeof host_info);
   host_info.ai_family = AF_INET;
   host_info.ai_socktype = SOCK_STREAM;
-  
+  ssize_t recv_len;
+
   // parsing parameters
   TParams params = getParams(argc, argv);
   if(params.ecode != EOK) {
@@ -216,6 +218,11 @@ int main(int argc, char *argv[]) {
     file.open(params.filepath.c_str(), fstream::in | fstream::binary);
     if(!file.is_open())
       error(EFILE, "Error opening file to write on server: " + params.filepath);
+  }
+  if(params.mode == READ && !params.filepath.empty()) {
+    file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
+    if(!file.is_open())
+      error(EOPEN_FILE, "Error opening file to write on client: " + params.filepath);
   }
 
   // try get addrinfo
@@ -232,114 +239,117 @@ int main(int argc, char *argv[]) {
 			close(sock);
 	}
 
-  // write = upload
+  // write
   if(params.mode == WRITE) {
     char buffer[BUFFER_SIZE];
-
-		int len = params.filepath.length();
-
-    buffer[0] = params.mode;
-    memcpy(buffer+1, &len, sizeof(int));
-    params.filepath.copy(buffer+1+sizeof(int), len);
-
-    send(sock, buffer, 1 + sizeof(int)+len, 0);
-
-    // cekani na status report
-    int recv_len;
-    char status = 99;
-
-    recv_len = recv(sock, &status, 1, 0);
-
-    if (recv_len != 1)
-      error(6, "chyba prijmu odpovedi na hlavicku");
-    if (status == CANNOT_WRITE)
-      error(10, "do pozadovaneho souboru nelze zapisovat!");
-    if (status == HEADER_ERROR)
-      error(6, "chyba odeslane hlavicky");
-    if (status != OK)
-      error(99, "neznama chyba serveru");
-
-    long celkem = 0;
+    int len = params.filepath.length();
+    long total_sent = 0;
     long file_size = 0;
 
-    file.seekg(0, file.end);   // nastaveni ukazatele na konec souboru
-    file_size = file.tellg();  // ziskani pozice ukazatele (== velikost souboru)
-    file.seekg(0, file.beg);   // nastaveni zpet na zacatek
+    file.seekg(0, file.end);
+    file_size = file.tellg();
+    file.seekg(0, file.beg);
 
-    // posilani dat
-    cout << "Posilam soubor: '" << file << "' Velikost: " << file_size << " B" << endl;
-    while(file.read(buffer, BUFFER_SIZE)) { // dokud se z file nacte cela BUFFER_SIZE
+    // header
+    buffer[0] = WRITE;
+    memcpy(buffer+1, &len, sizeof(int));
+    params.filepath.copy(buffer+1+sizeof(int), len);
+    memcpy(buffer+1+sizeof(int) + len, &file_size, sizeof(long));
 
-      // CTRL+C handler
-      if(G_break == 1)
+    // send header
+    send(sock, buffer, 1 + sizeof(int)+len+sizeof(long), 0);
+
+    // waiting on response on header
+    char response = EUNKNOWN;
+
+    // waiting on response on header
+		if((recv(sock, &response, 1, 0)) != 1)
+      error(EHEADER, "Header was not succesfully transfered.");
+
+    // header response
+    switch(response) {
+      case EOPEN_FILE:
+        error(EOPEN_FILE, "File can not be opened.");
+      case ELOCK_FILE:
+        error(ELOCK_FILE, "File can not be locked.");
+      case EHEADER:
+        error(EHEADER, "Header error.");
+      case EOK:
         break;
+      case EUNKNOWN:
+        error(EUNKNOWN, "Unknown response.");
+      default:
+        error(EUNKNOWN, "Unknown response.");
+    }
 
+    // sending file
+    cout<<"Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
+    while(file.read(buffer, BUFFER_SIZE)) {
       send(sock, buffer, BUFFER_SIZE, 0);
-      celkem += file.gcount();
-      cout << file.gcount() << " B odeslano. Celkem: " << celkem << " B z " << file_size << " B" << endl;
+      total_sent += file.gcount();
+      cout<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
 
     send(sock, buffer, file.gcount(), 0);
-    celkem += file.gcount();
-    cout << file.gcount() << " B odeslano. Celkem: " << celkem << " B z " << file_size << " B" << endl;
+    total_sent += file.gcount();
+    cout<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
 
     file.close();
-  } // download
-	{
+  }
+  // read
+  else {
 		char buffer[BUFFER_SIZE];
-
 		int len = params.filepath.length();
+		char response = EUNKNOWN;
 
-		// posilani hlavicky
+    // header
 		buffer[0] = READ;
 		memcpy(buffer+1, &len, sizeof(int));
 		params.filepath.copy(buffer+1+sizeof(int), len);
 
+    // send header
 		send(sock, buffer, 1+sizeof(int)+len, 0);
 
-		// cekani na status report
-		int recv_len;
-		char status = 99;
+    // waiting on response on header
+		if((recv(sock, &response, 1, 0)) != 1)
+      error(EHEADER, "Header was not succesfully transfered.");
 
-		recv_len = recv(sock, &status, 1, 0);
-
-		if (recv_len != 1)
-			error(6, "chyba prijmu odpovedi na hlavicku");
-		if (status == DOES_NOT_EXIST)
-			error(10, "pozadovany soubor na serveru neexistuje!");
-		if (status == HEADER_ERROR)
-			error(6, "chyba odeslane hlavicky");
-		if (status != OK)
-			error(99, "neznama chyba serveru");
-
-		// prijimani dat
-		long celkem = 0;
-
-		cout << "Prijimam soubor: '" << params.filepath << "'" << endl;
-		do {
-      // CTRL+C handler
-      if(G_break == 1)
+    // header response
+    switch(response) {
+      case EOPEN_FILE:
+        error(EOPEN_FILE, "File can not be opened.");
+      case ELOCK_FILE:
+        error(ELOCK_FILE, "File can not be locked.");
+      case EHEADER:
+        error(EHEADER, "Header error.");
+      case EOK:
         break;
-
-    recv_len = recv(sock, buffer, BUFFER_SIZE, 0);
-
-    file.write(buffer, recv_len);
-
-    if (recv_len == 0)
-    {
-    	cout << "Konec prenosu. Celkem preneseno: " << celkem << " B" << endl ;
-    	break;
+      default:
+        error(EUNKNOWN, "Unknown response.");
     }
 
-    if (recv_len == -1)
-    	cerr << "Chyba prenosu!" << endl ;
+		// prijimani dat
+		long total_received = 0;
 
-    celkem += recv_len;
-    cout << recv_len << " B prijato. Celkem: " << celkem << " B" << endl ;
+		cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
+
+		do {
+      if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
+        error(EFILE_CONTENT, "Transmission content");
+      }
+
+      file.write(buffer, recv_len);
+
+      if(recv_len == 0) {
+         cout<<"Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
+    	   break;
+      }
+      total_received += recv_len;
+
+      cout<<file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<file.gcount()<<" B"<<endl;
     } while (true);
 
 		file.close();
-
 	}
 
 	close(sock);

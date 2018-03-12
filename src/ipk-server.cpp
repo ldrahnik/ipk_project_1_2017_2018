@@ -32,7 +32,6 @@
 using namespace std;
 
 #define MAX_CLIENTS 128
-
 #define BUFFER_SIZE 1448
 
 /**
@@ -73,7 +72,7 @@ void error(int code, string msg) {
  * Error codes.
  */
 enum ecodes {
-  EOK = 0,              // ok
+  EOK = 0,              // ok, even used in protocol error
   EOPT = 1,             // invalid option (option argument is missing,
                         // unknown option, unknown option character)
   EGETADDRINFO = 2,
@@ -84,12 +83,11 @@ enum ecodes {
   ETHREAD = 7,
   ETHREAD_CREATE = 8,
 
-  /*#define OK 0
-  #define DOES_NOT_EXIST 1
-  #define CANNOT_WRITE 2*/
+  // protocol error codes
   EOPEN_FILE = 100,
   EHEADER = 101,
-  ELOCK_FILE = 102
+  ELOCK_FILE = 102,
+  EFILE_CONTENT = 103
 };
 
 /**
@@ -172,7 +170,6 @@ void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]) {
     delete threads_args[index];
   }
   freeaddrinfo(addrinfo);
-  //delete params->nodes;
 }
 
 void serverError(TParams* params, int node_index, int client_sock, int code, string msg) {
@@ -199,14 +196,11 @@ void* handleServer(void *threadarg) {
   int node_index = pthread_args->node_index;
   ssize_t recv_len;
   char buffer[BUFFER_SIZE];
-  char mode = buffer[0];
-  int filepath_len;
 
   cout<<"[CLIENT #"<<node_index<<"] Is starting\n"<<endl;
 
   recv_len = recv(client_sock, buffer, 1+sizeof(int), 0);
 
-  // header (size of file)
   if(recv_len != 1 + sizeof(int)) {
     ecode = EHEADER;
     send(client_sock, &ecode, 1, 0);
@@ -214,10 +208,11 @@ void* handleServer(void *threadarg) {
     pthread_exit(NULL);
   }
 
-  // size of file
+  char mode = buffer[0];
+  int filepath_len;
   memcpy(&filepath_len, buffer+1, sizeof(int));
 
-  // rest of header (filename)
+  // filename
   recv_len = recv(client_sock, buffer, filepath_len, 0);
 
   if(recv_len != filepath_len) {
@@ -233,10 +228,25 @@ void* handleServer(void *threadarg) {
 
   // write
   if(mode == WRITE) {
+    // filesize
+    recv_len = recv(client_sock, buffer, sizeof(long), 0);
 
-    // opening file failed
+    if(recv_len != sizeof(long)) {
+      ecode = EHEADER;
+      send(client_sock, &ecode, 1, 0);
+      serverError(params, node_index, client_sock, EHEADER, "Header error.");
+      pthread_exit(NULL);
+    }
+
+    long file_size;
+    memcpy(&file_size, buffer, sizeof(long));
+
+    //cout<<"[CLIENT #"<<node_index<<"] wants write a file. Sent filename: '"<<basename(filepath.c_str())<<"', Size: "<<file_size<<" B"<<endl;
+    cout<<"[CLIENT #"<<node_index<<"] Wants write a file. Sent filename: '"<<basename(filepath.c_str())<<"'"<<endl;
+
+    // open file
     ofstream output_file;
-    output_file.open(basename(filepath.c_str()), fstream::out | fstream::binary);
+    output_file.open(basename(filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
     if(!output_file.is_open()) {
       ecode = EOPEN_FILE;
       send(client_sock, &ecode, 1, 0);
@@ -254,12 +264,13 @@ void* handleServer(void *threadarg) {
     // opened, locked => OK
     send(client_sock, &ecode, 1, 0);
 
-    cout<<"[CLIENT #"<<node_index<<"] Is receiving filename: '"<<basename(filepath.c_str())<<"'"<<endl;
-
     long total_received = 0;
     do {
       if((recv_len = recv(client_sock, buffer, BUFFER_SIZE, 0)) == -1) {
-        cerr<<"WHAAAEE ERROR RECV!" << endl; // TODO:
+        ecode = EFILE_CONTENT;
+        send(client_sock, &ecode, 1, 0);
+        serverError(params, node_index, client_sock, EFILE_CONTENT, "Error during data of file transmission");
+        pthread_exit(NULL);
       }
       //cout<<"[CLIENT #"<<node_index<<"]"<<output_file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<filepath_len<<" B"<<endl;
 
@@ -267,9 +278,18 @@ void* handleServer(void *threadarg) {
 
       output_file.write(buffer, recv_len);
 
-      if(recv_len == 0)
-        cout<<"[CLIENT #"<<node_index<<"] Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
-
+      if(recv_len == 0) {
+        if(file_size != total_received) {
+          cout<<"[CLIENT #"<<node_index<<"] Transmition ended with error about file content size. Total number of received bytes: "<<total_received<<" B"<<endl;
+          ecode = EFILE_CONTENT;
+          send(client_sock, &ecode, 1, 0);
+          serverError(params, node_index, client_sock, EOPEN_FILE, "Server can not open: " + filepath);
+          pthread_exit(NULL);
+        } else {
+          cout<<"[CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B"<<endl;
+          send(client_sock, &ecode, 1, 0);
+        }
+      }
     } while (recv_len > 0);
 
     // close file
@@ -280,8 +300,9 @@ void* handleServer(void *threadarg) {
   }
   // read
   else if (mode == READ) {
+    cout<<"[CLIENT #"<<node_index<<"] wants read a file. Received filename: '"<<basename(filepath.c_str())<<"'"<<endl;
 
-    // opening file failed
+    // open file
     ifstream input_file;
     input_file.open(filepath.c_str(), fstream::in | fstream::binary);
     if(!input_file.is_open()) {
@@ -305,16 +326,14 @@ void* handleServer(void *threadarg) {
     long total_sent = 0;
     long file_size = 0;
 
-    input_file.seekg(0, input_file.end);   // nastaveni ukazatele na konec souboru
-    file_size = input_file.tellg();        // ziskani pozice ukazatele (== velikost souboru)
-    input_file.seekg(0, input_file.beg);   // nastaveni zpet na zacatek
-
-    cout<<"[CLIENT #"<<node_index<<"] Is sending filename: '"<<basename(filepath.c_str())<<"', Velikost: "<<file_size<<" B"<<endl;
+    input_file.seekg(0, input_file.end);
+    file_size = input_file.tellg();
+    input_file.seekg(0, input_file.beg);
 
     while(input_file.read(buffer, BUFFER_SIZE)) {
       send(client_sock, buffer, BUFFER_SIZE, 0);
       total_sent += input_file.gcount();
-      cout<<"[CLIENT #"<<node_index<<"]"<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+      cout<<"[CLIENT #"<<node_index<<"] "<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
 
     send(client_sock, buffer, input_file.gcount(), 0);

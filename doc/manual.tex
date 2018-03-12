@@ -23,9 +23,62 @@
 \newpage
 
 \section*{Obsah}
+\begin{itemize}
+  \item Úvod
+  \item Návrh programu
+  \item Implementace
+  \item Použití aplikace
+  \item Závěr
 \end{itemize}
 
 \newpage
+
+\section*{Úvod}
+\begin{itemize}
+  \item Dokumentace má za účel vysvětlit jak došlo k návrhu programu co se především týče k zadání, jeho implementace a způsob použití.
+\end{itemize}
+
+\section*{Návrh programu}
+\begin{itemize}
+  \item Spojení inicializuje klient (musí znát hostname a port, na kterém server naslouchá) a po
+úspěšném navázání TCP spojení odešle hlavičku s požadavkem, délkou jména souboru a samotným jménem souboru. Server na
+ní reaguje odpovědí se stavem (zda je vše OK, nebo soubor neexistuje, nastala nějaká
+chyba při otevírání, zamykání souboru). Po přijetí odpovědi klient buď přijímá data nebo je odesílá nebo se ukončí s příslušnou
+chybovou hláškou. Vysílající uzavře po odeslání celého souboru socket. Po dokončení přenosu případně server dle údaju poskytnutým v hlavičce při módu write zkontroluje,
+zda přijatý soubor je stejně velký jako avizovaný na začátku přenosu.
+\end{itemize}
+
+\section*{Implementace}
+\begin{itemize}
+  \item Hlavička je tvořena 1 B určujícím mode (read nebo write), 4 B (sizeof(int), obsahující délku jména souboru a poté samotný název souboru. Při mode read poté write poté ještě následuje informace o délce souboru typu sizeof(long).
+Tuto hlavičku přijímá server postupně, zjistí požadovanou operaci a kolik B má název souboru. Pomocí této délky
+pak přijme zbytek hlavičky a zkusí otevřít soubor. Nakonec odpovídá 1 B odpovědí se
+stavovým kódem. Pokud vše proběhlo bez chyby, začne přijímat/odesílat data.
+Po přenesení celého souboru odesílající uzavře socket a spojení je ukončeno. Při mode write server ví, alespoň dle velikosti souboru,
+zda přijmul stejně velký a může si to po dokončení přenosu zkontrolovat.
+\end{itemize}
+
+\section*{Použití aplikace}
+\begin{itemize}
+
+  \item
+  \lstset{language=Bash}
+  \begin{lstlisting}[frame=single,breaklines]
+    ./ipk-client -h eva.fit.vutbr.cz -p 55555 -r myfile.xml
+  \end{lstlisting}
+
+  \item
+  \lstset{language=Bash}
+  \begin{lstlisting}[frame=single,breaklines]
+    ./ipk-server -p port
+  \end{lstlisting}
+
+\end{itemize}
+
+\section*{Závěr}
+\begin{itemize}
+  \item Projekt pomohl pochopit úskalí návrhu protokolu, složité rozhodování týkající se multiplatformosti, jednoduchosti, použitelnost a dalších aspektů.
+\end{itemize}
 
 \nocite{*}
 
