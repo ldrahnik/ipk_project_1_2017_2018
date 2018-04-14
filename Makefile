@@ -44,11 +44,11 @@ rebuild:	clean all
 LOGIN = xdrahn00
 FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROJECT_DOC) $(PROJECT_README)
 
-tar:
-	tar -cvzf $(LOGIN).tar $(FILES)
+zip:
+	zip -r $(LOGIN).zip $(FILES)
 
-rmtar:
-	rm -f $(LOGIN).tar
+rmzip:
+	rm -f $(LOGIN).zip
 
 ############################################
 
