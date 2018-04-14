@@ -328,7 +328,7 @@ int main(int argc, char *argv[]) {
         error(EUNKNOWN, "Unknown response.");
     }
 
-		// prijimani dat
+		// data receiving
 		long total_received = 0;
 
 		cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
