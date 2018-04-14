@@ -8,7 +8,7 @@
 CLIENT_NAME     		= ipk-client
 CLIENT_SOURCES  		= src/ipk-client.cpp
 CLIENT_OBJECTS  		= $(CLIENT_SOURCES:.cpp=.o)
-PROJECT_DOC					= doc/manual.pdf
+PROJECT_DOC					= doc/dokumentace.pdf
 PROJECT_README			= Readme.md
 
 CC              		= g++
@@ -53,4 +53,4 @@ rmtar:
 ############################################
 
 tex:
-	cd doc && make && make manual.ps && make manual.pdf
+	cd doc && make && make dokumentace.ps && make dokumentace.pdf

@@ -1,6 +1,6 @@
-doc.dvi: manual.tex Makefile local.bib
+doc.dvi: dokumentace.tex Makefile local.bib
 	latex $<
-	bibtex manual
+	bibtex dokumentace
 	latex $<
 	latex $<
 
