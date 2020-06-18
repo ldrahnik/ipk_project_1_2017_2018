@@ -1,4 +1,12 @@
-Popis:
+Společná část popisu:
+Vypracujte jednoduchou klient-server aplikace dle uvedeného zadání.
+
+Odevzdejte Váš projekt jako archív s názvem odpovídající Vašemu loginu. Projekty odevzdané po termínu nebuou hodnoceny. 
+Odevzdáváte zdrojové soubory projektu
+Projekt musí obsahovat soubor Makefile pro přeložení pomocí make (gmake) (http://www.linuxsoft.cz/article.php?id_article=722)
+Projekt musí být přeložitelný pro uvedený systém (Linux, Unix)
+Součástí projektu je také dokumentace  ve formátu plain text, Markdown, nebo PDF. 
+Popis varianty:
 ZADÁNÍ:
 Vašim úkolem je:
 [1] Seznamte se s kostrami kódů pro programování klientských a serverových síťových aplikací (přednáška třetí) za použití BSD socketů. Navrhněte vlastní aplikační protokol realizující přenos souboru a relevantní informace k projektu uveďte v dokumentaci. (8 bodů)
@@ -23,12 +31,12 @@ host (IP adresa nebo fully-qualified DNS name) identifikace serveru jakožto kon
 port (číslo) cílové číslo portu;
 -r značí, že klient bude ze serveru soubor číst;
 -w značí, že klient bude na server soubor zapisovat;
-file (cesta) určuje cestu k souboru, se kterým se bude manipulovat (buď se jeho obsah načte na server, nebo se obsah daného souboru na serveru zapíše do lokálního).
+file (cesta) určuje cestu k souboru, se kterým se bude manipulovat (buď se soubor odkazovaný cestou uploadne do pracovního adresáře serveru, nebo se obsah souboru stejného jména v pracovním adresáři serveru downloadne na místo specifikované cestou).
 např.
 
 ./ipk-client -h eva.fit.vutbr.cz -p 55555 -r myfile.xml
 Konvence jména serverové aplikace a jejích povinných vstupních parametrů:
-./ipk-server -p port                    
+./ipk-server -p port                     
 port (číslo) číslo portu, na kterém server naslouchá na připojení od klientů.
 např.
 
