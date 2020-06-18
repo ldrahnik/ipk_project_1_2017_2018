@@ -1,2 +1,3 @@
 ./server_root/ipk-server
 ./client_root/ipk-client
+*.o
