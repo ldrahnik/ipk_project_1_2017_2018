@@ -45,10 +45,11 @@ static int G_break = 0;
  */
 const char *HELP_MSG = {
   "Example of usage:\n\n"
-  "./ipk-server [-r <number>] -p <port> \n\n"
+  "./ipk-server [-h] [-r <number>] -p <port> \n\n"
   "Options:\n"
+  "-h - show help message\n"
   "-r <number> - number of handled requests, then server ends\n"
-  "-p <port>  - specification port\n"
+  "-p <port> - specification port\n"
 };
 
 /**
@@ -113,6 +114,7 @@ void catchsignal(int sig) {
  */
 typedef struct params {
   string port;
+  int show_help_message;
   int ecode;
   int nodes_count;
   int requests_count;
@@ -128,6 +130,7 @@ TParams getParams(int argc, char *argv[]) {
   // default params
   TParams params;
   params.ecode = EOK;
+  params.show_help_message = 0;
   params.nodes_count = 0;
   params.requests_count = -1;
 
@@ -136,8 +139,11 @@ TParams getParams(int argc, char *argv[]) {
 
   // getopt
   int c;
-  while ((c = getopt(argc, argv, "p:r:")) != -1) {
+  while ((c = getopt(argc, argv, "hp:r:")) != -1) {
     switch (c) {
+      case 'h':
+        params.show_help_message = 1;
+        return params;
       case 'p':
         params.port = optarg;
         break;
@@ -158,8 +164,10 @@ TParams getParams(int argc, char *argv[]) {
     }
   }
 
-  if(params.port.empty())
-    error(1, "Port is required.");
+  if(params.port.empty()) {
+    fprintf(stderr, "Port is required.\n");
+    params.ecode = EOPT;
+  }
 
   return params;
 }
@@ -385,8 +393,12 @@ int main(int argc, char *argv[]) {
 
   // get args
   TParams params = getParams(argc, argv);
+  if(params.show_help_message) {
+    cout<<HELP_MSG<<endl;
+    return params.ecode;
+  }
   if(params.ecode != EOK) {
-    //cout<<HELP_MSG<<endl;
+    cout<<"\n"<<HELP_MSG<<endl;
     return params.ecode;
   }
 
