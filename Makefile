@@ -9,13 +9,13 @@ PROJECT_README			= Readme.md
 ########################################### CLIENT
 
 CLIENT_NAME     		= ipk-client
-CLIENT_SOURCES  		= src/ipk-client.cpp
+CLIENT_SOURCES  		= src/ipk-client/*.cpp src/ipk-client/*.h
 CLIENT_OBJECTS  		= $(CLIENT_SOURCES:.cpp=.o)
 
 ############################################ SERVER
 
 SERVER_NAME     		= ipk-server
-SERVER_SOURCES  		= src/ipk-server.cpp
+SERVER_SOURCES  		= src/ipk-server/*.cpp
 SERVER_OBJECTS  		= $(SERVER_SOURCES:.cpp=.o)
 
 ############################################

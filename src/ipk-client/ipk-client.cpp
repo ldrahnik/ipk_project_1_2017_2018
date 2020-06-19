@@ -5,51 +5,8 @@
  * Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
  */
 
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <iostream>
-#include <pthread.h>
-#include <netdb.h>
-#include <errno.h>
-#include <signal.h>
-#include <time.h>
-#include <math.h>
+#include "ipk-client.h"
 
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/time.h>
-
-#include <arpa/inet.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/icmp6.h>
-
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <cstring>
-
-#include <sys/socket.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <errno.h>
-
-using namespace std;
-
-#define BUFFER_SIZE 1448
-#define MAX_CLIENTS 128
-
-/**
- * When is pressed ctrl+c.
- */
-static int G_break = 0;
-
-/**
- * Help message.
- */
 const char *HELP_MSG = {
   "Example of usage:\n\n"
   "./ipk-client -h <host> -p <port> [-r|-w] file\n\n"
@@ -61,34 +18,9 @@ const char *HELP_MSG = {
 };
 
 /**
- * Error codes.
+ * When is pressed ctrl+c.
  */
-enum ecodes {
-  EOK = 0,               // ok, even used in protocol error
-  EOPT = 1,              // invalid option (option argument is missing,
-                         // unknown option, unknown option character)
-  EGETADDRINFO = 2,
-  ESOCKET = 3,
-  EBIND = 4,
-  ELISTEN = 5,
-  EFILE = 6,
-
-
-  // protocol error codes
-  EOPEN_FILE = 100,
-  EHEADER = 101,
-  ELOCK_FILE = 102,
-  EFILE_CONTENT = 103,
-  EUNKNOWN = 99
-};
-
-/**
- * Transfer file modes.
- */
-enum modes {
-  READ = 0,
-  WRITE = 1
-};
+static int G_break = 0;
 
 /**
  * Signal handler.
@@ -98,17 +30,6 @@ void catchsignal(int sig) {
     G_break = 1;
   }
 }
-
-/**
- * Terminal parameters:
- */
-typedef struct params {
-  string port;                        // option p
-  string host;                        // option h
-  string filepath;                    // option [r|w]
-  int mode;                           // option [r|w] r = 0, w = 1
-  int ecode;                          // error code
-} TParams;
 
 /**
  * Print error message.
@@ -125,74 +46,6 @@ void error(int code, string msg) {
  */
 void clean() {
 
-}
-
-/**
- * Get TParams structure from terminal options, option arguments and nodes.
- *
- * @return TParams
- */
-TParams getParams(int argc, char *argv[]) {
-
-  // default params
-  TParams params = { };
-  params.ecode = EOK;
-  params.mode = -1;
-
-  // don't want getopt() writing to stderr
-  opterr = 0;
-
-  // getopt
-  int c;
-  while ((c = getopt(argc, argv, "h:p:r:w:")) != -1) {
-    switch (c) {
-      case 'h':
-        params.host = optarg;
-        break;
-      case 'p':
-        params.port = optarg;
-        break;
-      case 'r':
-        params.mode = READ;
-        params.filepath = optarg;
-        break;
-      case 'w':
-        params.mode = WRITE;
-        params.filepath = optarg;
-        break;
-      case '?':
-        if(optopt == 'p' || optopt == 'h' || optopt == 'r' || optopt == 'w') {
-          fprintf (stderr, "Option -%c requires an argument.\n", optopt);
-        } else if(isprint (optopt)) {
-          fprintf (stderr, "Unknown option `-%c'.\n", optopt);
-        } else {
-          fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
-        }
-        params.ecode = EOPT;
-        break;
-      default:
-        params.ecode = EOPT;
-      }
-  }
-
-  if(params.port.empty()) {
-	fprintf(stderr, "Port is required.\n");
-    params.ecode = EOPT;
-  }
-  if(params.host.empty()) {
-	fprintf(stderr, "Hostname is required.\n");
-    params.ecode = EOPT;
-  } 
-  if(params.mode == -1) {
-    fprintf(stderr, "Mode (write or read) is required.\n");
-    params.ecode = EOPT;
-  }
-  if(params.filepath.empty()) {
-    fprintf(stderr, "File is required.\n");
-    params.ecode = EOPT;
-  }
-
-  return params;
 }
 
 /**
@@ -222,12 +75,12 @@ int main(int argc, char *argv[]) {
 
   // try get file
   fstream file;
-  if(params.mode == WRITE && !params.filepath.empty()) {
+  if(params.transfer_mode == WRITE && !params.filepath.empty()) {
     file.open(params.filepath.c_str(), fstream::in | fstream::binary);
     if(!file.is_open())
       error(EFILE, "Error opening file to write on server: " + params.filepath);
   }
-  if(params.mode == READ && !params.filepath.empty()) {
+  if(params.transfer_mode == READ && !params.filepath.empty()) {
     file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open())
       error(EOPEN_FILE, "Error opening file to write on client: " + params.filepath);
@@ -248,7 +101,7 @@ int main(int argc, char *argv[]) {
 	}
 
   // write
-  if(params.mode == WRITE) {
+  if(params.transfer_mode == WRITE) {
     char buffer[BUFFER_SIZE];
     int len = params.filepath.length();
     long total_sent = 0;
