@@ -4,10 +4,10 @@
  * Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
  */
 
-#ifndef _ipk_protocol_error_H_
-#define _ipk_protocol_error_H_
+#ifndef _ipk_protocol_status_code_H_
+#define _ipk_protocol_status_code_H_
 
-enum protocol_ecode {
+enum protocol_status_code {
   STATUS_CODE_OK = 0,
   STATUS_CODE_EOPEN_FILE = 100,
   STATUS_CODE_EHEADER = 101,
