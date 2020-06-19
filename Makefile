@@ -15,7 +15,7 @@ CLIENT_OBJECTS  		= $(CLIENT_SOURCES:.cpp=.o)
 ############################################ SERVER
 
 SERVER_NAME     		= ipk-server
-SERVER_SOURCES  		= src/ipk-server/*.cpp
+SERVER_SOURCES  		= src/ipk-server/*.cpp src/ipk-server/*.h
 SERVER_OBJECTS  		= $(SERVER_SOURCES:.cpp=.o)
 
 ############################################

@@ -1,5 +1,5 @@
-ipk-server
-ipk-client
+./ipk-server
+./ipk-client
 ./server_root/ipk-server
 ./client_root/ipk-client
 *.o

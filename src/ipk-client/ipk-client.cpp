@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
   if(params.transfer_mode == READ && !params.filepath.empty()) {
     file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open())
-      error(EOPEN_FILE, "Error opening file to write on client: " + params.filepath);
+      error(EFILE, "Error opening file to write on client: " + params.filepath);
   }
 
   // try get addrinfo
@@ -121,30 +121,30 @@ int main(int argc, char *argv[]) {
     send(sock, buffer, 1 + sizeof(int)+len+sizeof(long), 0);
 
     // waiting on response on header
-    char response = EUNKNOWN;
+    char response = STATUS_CODE_EUNKNOWN;
 
     // waiting on response on header
 		if((recv(sock, &response, 1, 0)) != 1)
-      error(EHEADER, "Header was not succesfully transfered.");
+      error(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
 
     // header response
     switch(response) {
-      case EOPEN_FILE:
-        error(EOPEN_FILE, "File can not be opened.");
+      case STATUS_CODE_EOPEN_FILE:
+        error(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
         break;
-      case ELOCK_FILE:
-        error(ELOCK_FILE, "File can not be locked.");
+      case STATUS_CODE_ELOCK_FILE:
+        error(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
         break;
-      case EHEADER:
-        error(EHEADER, "Header error.");
+      case STATUS_CODE_EHEADER:
+        error(STATUS_CODE_EHEADER, "Header error.");
         break;
-      case EOK:
+      case STATUS_CODE_OK:
         break;
-      case EUNKNOWN:
-        error(EUNKNOWN, "Unknown response.");
+      case STATUS_CODE_EUNKNOWN:
+        error(STATUS_CODE_EUNKNOWN, "Unknown response.");
         break;
       default:
-        error(EUNKNOWN, "Unknown response.");
+        error(STATUS_CODE_EUNKNOWN, "Unknown response.");
         break;
     }
 
@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
   else {
 		char buffer[BUFFER_SIZE];
 		int len = params.filepath.length();
-		char response = EUNKNOWN;
+		char response = STATUS_CODE_EUNKNOWN;
 
     // header
 		buffer[0] = READ;
@@ -178,23 +178,23 @@ int main(int argc, char *argv[]) {
 
     // waiting on response on header
 		if((recv(sock, &response, 1, 0)) != 1)
-      error(EHEADER, "Header was not succesfully transfered.");
+      error(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
 
     // header response
     switch(response) {
-      case EOPEN_FILE:
-        error(EOPEN_FILE, "File can not be opened.");
+      case STATUS_CODE_EOPEN_FILE:
+        error(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
         break;
-      case ELOCK_FILE:
-        error(ELOCK_FILE, "File can not be locked.");
+      case STATUS_CODE_ELOCK_FILE:
+        error(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
         break;
-      case EHEADER:
-        error(EHEADER, "Header error.");
+      case STATUS_CODE_EHEADER:
+        error(STATUS_CODE_EHEADER, "Header error.");
         break;
-      case EOK:
+      case STATUS_CODE_OK:
         break;
       default:
-        error(EUNKNOWN, "Unknown response.");
+        error(STATUS_CODE_EUNKNOWN, "Unknown response.");
         break;
     }
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
 
 		do {
       if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
-        error(EFILE_CONTENT, "Transmission content");
+        error(STATUS_CODE_EFILE_CONTENT, "Transmission content");
       }
 
       file.write(buffer, recv_len);

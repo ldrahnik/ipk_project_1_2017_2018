@@ -5,35 +5,7 @@
  * Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
  */
 
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <iostream>
-#include <pthread.h>
-#include <netdb.h>
-#include <errno.h>
-#include <signal.h>
-#include <time.h>
-#include <math.h>
-#include <limits.h>
-
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/time.h>
-
-#include <arpa/inet.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/icmp6.h>
-#include <sys/file.h>
-
-#include <fstream>
-
-using namespace std;
-
-#define MAX_CLIENTS 128
-#define BUFFER_SIZE 1448
+#include "ipk-server.h"
 
 /**
  * When is pressed ctrl+c.
@@ -53,52 +25,12 @@ const char *HELP_MSG = {
 };
 
 /**
- * Arguments for pthread created for each node.
- */
-typedef struct pthread_args {
-  struct params *params;
-  int node_index;                     // start index is 0
-  struct addrinfo *addrinfo;
-  int sock;
-} Tpthread_args;
-
-/**
  * Print error message.
  */
 void error(int code, string msg) {
 	cerr<<msg<< endl;
   exit(code);
 }
-
-/**
- * Error codes.
- */
-enum ecodes {
-  EOK = 0,              // ok, even used in protocol error
-  EOPT = 1,             // invalid option (option argument is missing,
-                        // unknown option, unknown option character)
-  EGETADDRINFO = 2,
-  ESOCKET = 3,
-  EBIND = 4,
-  ELISTEN = 5,
-  EFILE = 6,
-  ETHREAD = 7,
-  ETHREAD_CREATE = 8,
-
-  // protocol error codes
-  EOPEN_FILE = 100,
-  EHEADER = 101,
-  ELOCK_FILE = 102,
-  EFILE_CONTENT = 103
-};
-
-/**
- * Transfer file modes.
- */
-enum modes {
-  READ = 0,
-  WRITE = 1
-};
 
 /**
  * Signal handler.
@@ -108,17 +40,6 @@ void catchsignal(int sig) {
     G_break = 1;
   }
 }
-
-/**
- * Terminal parameters:
- */
-typedef struct params {
-  string port;
-  int show_help_message;
-  int ecode;
-  int nodes_count;
-  int requests_count;
-} TParams;
 
 /**
  * Get TParams structure from terminal options, option arguments and nodes.
@@ -216,9 +137,9 @@ void* handleServer(void *threadarg) {
   recv_len = recv(client_sock, buffer, 1+sizeof(int), 0);
 
   if(recv_len != 1 + sizeof(int)) {
-    ecode = EHEADER;
+    ecode = STATUS_CODE_EHEADER;
     send(client_sock, &ecode, 1, 0);
-    serverError(params, node_index, client_sock, EHEADER, "Header error.");
+    serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error.");
     pthread_exit(NULL);
   }
 
@@ -230,9 +151,9 @@ void* handleServer(void *threadarg) {
   recv_len = recv(client_sock, buffer, filepath_len, 0);
 
   if(recv_len != filepath_len) {
-    ecode = EHEADER;
+    ecode = STATUS_CODE_EHEADER;
     send(client_sock, &ecode, 1, 0);
-    serverError(params, node_index, client_sock, EHEADER, "Header error.");
+    serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error.");
     pthread_exit(NULL);
   }
 
@@ -246,9 +167,9 @@ void* handleServer(void *threadarg) {
     recv_len = recv(client_sock, buffer, sizeof(long), 0);
 
     if(recv_len != sizeof(long)) {
-      ecode = EHEADER;
+      ecode = STATUS_CODE_EHEADER;
       send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, EHEADER, "Header error.");
+      serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error.");
       pthread_exit(NULL);
     }
 
@@ -262,9 +183,9 @@ void* handleServer(void *threadarg) {
     ofstream output_file;
     output_file.open(basename(filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
     if(!output_file.is_open()) {
-      ecode = EOPEN_FILE;
+      ecode = STATUS_CODE_EOPEN_FILE;
       send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, EOPEN_FILE, "Server can not open: " + filepath);
+      serverError(params, node_index, client_sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + filepath);
       pthread_exit(NULL);
     }
 
@@ -281,9 +202,9 @@ void* handleServer(void *threadarg) {
     long total_received = 0;
     do {
       if((recv_len = recv(client_sock, buffer, BUFFER_SIZE, 0)) == -1) {
-        ecode = EFILE_CONTENT;
+        ecode = STATUS_CODE_EFILE_CONTENT;
         send(client_sock, &ecode, 1, 0);
-        serverError(params, node_index, client_sock, EFILE_CONTENT, "Error during data of file transmission");
+        serverError(params, node_index, client_sock, STATUS_CODE_EFILE_CONTENT, "Error during data of file transmission");
         pthread_exit(NULL);
       }
       //cout<<"[CLIENT #"<<node_index<<"]"<<output_file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<filepath_len<<" B"<<endl;
@@ -295,9 +216,9 @@ void* handleServer(void *threadarg) {
       if(recv_len == 0) {
         if(file_size != total_received) {
           cout<<"[CLIENT #"<<node_index<<"] Transmition ended with error about file content size. Total number of received bytes: "<<total_received<<" B"<<endl;
-          ecode = EFILE_CONTENT;
+          ecode = STATUS_CODE_EFILE_CONTENT;
           send(client_sock, &ecode, 1, 0);
-          serverError(params, node_index, client_sock, EOPEN_FILE, "Server can not open: " + filepath);
+          serverError(params, node_index, client_sock, STATUS_CODE_EFILE_CONTENT, "Server can not open: " + filepath);
           pthread_exit(NULL);
         } else {
           cout<<"[CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B"<<endl;
@@ -320,9 +241,9 @@ void* handleServer(void *threadarg) {
     ifstream input_file;
     input_file.open(filepath.c_str(), fstream::in | fstream::binary);
     if(!input_file.is_open()) {
-      ecode = EOPEN_FILE;
+      ecode = STATUS_CODE_EOPEN_FILE;
       send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, EOPEN_FILE, "Server can not open: " + filepath);
+      serverError(params, node_index, client_sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + filepath);
       pthread_exit(NULL);
     }
 
@@ -362,9 +283,9 @@ void* handleServer(void *threadarg) {
 
   // else
   } else {
-    ecode = EHEADER;
+    ecode = STATUS_CODE_EHEADER;
     send(client_sock, &ecode, 1, 0);
-    serverError(params, node_index, client_sock, EHEADER, "Header error. Mode could not be recognized.");
+    serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error. Mode could not be recognized.");
     pthread_exit(NULL);
   }
 
