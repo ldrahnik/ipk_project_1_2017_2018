@@ -1,8 +1,8 @@
 /**
- * Name:							Lukáš Drahník
- * Project: 					IPK: Varianta 2: Klient-server pro jednoduchý přenos souborů (Veselý)
- * Date:							8.3.2018
- * Email:						  <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
+ * Name: Lukáš Drahník
+ * Project: IPK: Varianta 2: Klient-server pro jednoduchý přenos souborů (Veselý)
+ * Date: 8.3.2018
+ * Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
  */
 
 #include <ctype.h>
@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <time.h>
 #include <math.h>
+#include <limits.h>
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -44,9 +45,9 @@ static int G_break = 0;
  */
 const char *HELP_MSG = {
   "Example of usage:\n\n"
-  "./ipk-server [-h] -p <port> \n\n"
+  "./ipk-server [-r <number>] -p <port> \n\n"
   "Options:\n"
-  "-h  -- show help message\n"
+  "-r <number> - number of handled requests, then server ends\n"
   "-p <port>  - specification port\n"
 };
 
@@ -114,6 +115,7 @@ typedef struct params {
   string port;
   int ecode;
   int nodes_count;
+  int requests_count;
 } TParams;
 
 /**
@@ -127,19 +129,23 @@ TParams getParams(int argc, char *argv[]) {
   TParams params;
   params.ecode = EOK;
   params.nodes_count = 0;
+  params.requests_count = -1;
 
   // don't want getopt() writing to stderr
   opterr = 0;
 
   // getopt
   int c;
-  while ((c = getopt(argc, argv, "p:")) != -1) {
+  while ((c = getopt(argc, argv, "p:r:")) != -1) {
     switch (c) {
       case 'p':
         params.port = optarg;
         break;
+      case 'r':
+        params.requests_count = atoi(optarg);
+        break;
       case '?':
-        if(optopt == 'p')
+        if(optopt == 'p' || optopt == 'r')
           fprintf (stderr, "Option -%c requires an argument.\n", optopt);
         else if(isprint (optopt))
           fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -173,7 +179,7 @@ void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]) {
 }
 
 void serverError(TParams* params, int node_index, int client_sock, int code, string msg) {
-	cerr<<msg<<endl;
+  cerr<<code<<msg<<endl;
   cout<<"[CLIENT #"<<node_index<<"] Is leaving with error\n"<<endl;
   close(client_sock);
   params->nodes_count--;
@@ -375,17 +381,18 @@ int main(int argc, char *argv[]) {
   socklen_t addr_size = sizeof(client_addr);
   pthread_t threads[MAX_CLIENTS];
   Tpthread_args* threads_args[MAX_CLIENTS];
+  int requests_count = 0;
 
   // get args
   TParams params = getParams(argc, argv);
   if(params.ecode != EOK) {
-    cout<<HELP_MSG<<endl;
+    //cout<<HELP_MSG<<endl;
     return params.ecode;
   }
 
   // addrinfo from given port
   memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_INET6;
+  hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
@@ -413,11 +420,17 @@ int main(int argc, char *argv[]) {
     if(G_break == 1)
       break;
 
+    // server already handled number of requested requests
+    if(params.requests_count != -1 && requests_count > params.requests_count)
+      break;
+
     // create client socket
     if((client_sock = accept(sock, (struct sockaddr *) &client_addr, &addr_size)) <= 0)
       continue;
 
     cout<<"[SERVER] Joined client. Started handling personal thread with number: "<<params.nodes_count<<"\n"<<endl;
+
+    requests_count++;
 
     // create Tpthread_args
     Tpthread_args* threadarg = new Tpthread_args();
@@ -433,6 +446,8 @@ int main(int argc, char *argv[]) {
 
     // increment client pthreads
     params.nodes_count++;
+
+    break;
   }
 
   // wait for all child node's

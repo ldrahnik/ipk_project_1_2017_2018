@@ -1,8 +1,8 @@
 /**
- * Name:							Lukáš Drahník
- * Project: 					IPK: Varianta 2: Klient-server pro jednoduchý přenos souborů (Veselý)
- * Date:							8.3.2018
- * Email:						  <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
+ * Name: Lukáš Drahník
+ * Project: IPK: Varianta 2: Klient-server pro jednoduchý přenos souborů (Veselý)
+ * Date: 8.3.2018
+ * Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
  */
 
 #include <ctype.h>
@@ -270,16 +270,21 @@ int main(int argc, char *argv[]) {
     switch(response) {
       case EOPEN_FILE:
         error(EOPEN_FILE, "File can not be opened.");
+        break;
       case ELOCK_FILE:
         error(ELOCK_FILE, "File can not be locked.");
+        break;
       case EHEADER:
         error(EHEADER, "Header error.");
+        break;
       case EOK:
         break;
       case EUNKNOWN:
         error(EUNKNOWN, "Unknown response.");
+        break;
       default:
         error(EUNKNOWN, "Unknown response.");
+        break;
     }
 
     // sending file
@@ -318,14 +323,18 @@ int main(int argc, char *argv[]) {
     switch(response) {
       case EOPEN_FILE:
         error(EOPEN_FILE, "File can not be opened.");
+        break;
       case ELOCK_FILE:
         error(ELOCK_FILE, "File can not be locked.");
+        break;
       case EHEADER:
         error(EHEADER, "Header error.");
+        break;
       case EOK:
         break;
       default:
         error(EUNKNOWN, "Unknown response.");
+        break;
     }
 
 		// data receiving
