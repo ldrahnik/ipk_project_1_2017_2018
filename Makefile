@@ -26,10 +26,10 @@ CFLAGS 					= -Wall -Wextra -pedantic -pthread
 all: $(CLIENT_NAME) $(SERVER_NAME)
 
 $(CLIENT_NAME):	$(CLIENT_OBJECTS)
-		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o $@ -o ./tests/client_root/$@
+		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o ./tests/client_root/$@
 
 $(SERVER_NAME):	$(SERVER_OBJECTS)
-				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o $@ -o ./tests/server_root/$@
+				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o ./tests/server_root/$@
 
 clean:
 	rm -rf *~ $(SERVER_OBJECTS) $(CLIENT_OBJECTS)
