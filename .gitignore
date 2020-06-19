@@ -1,3 +1,5 @@
+ipk-server
+ipk-client
 tests/server_root/ipk-server
 tests/client_root/ipk-client
 *.o
