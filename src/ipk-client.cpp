@@ -175,14 +175,22 @@ TParams getParams(int argc, char *argv[]) {
       }
   }
 
-  if(params.port.empty())
-		error(EOPT, "Port is required.");
-	if(params.host.empty())
-		error(EOPT, "Hostname is required.");
-  if(params.mode == -1)
-    error(EOPT, "Mode (write or read) is required");
-  if(params.mode == WRITE && params.filepath.empty())
-    error(EOPT, "Write file is required.");
+  if(params.port.empty()) {
+	fprintf(stderr, "Port is required.\n");
+    params.ecode = EOPT;
+  }
+  if(params.host.empty()) {
+	fprintf(stderr, "Hostname is required.\n");
+    params.ecode = EOPT;
+  } 
+  if(params.mode == -1) {
+    fprintf(stderr, "Mode (write or read) is required.\n");
+    params.ecode = EOPT;
+  }
+  if(params.filepath.empty()) {
+    fprintf(stderr, "File is required.\n");
+    params.ecode = EOPT;
+  }
 
   return params;
 }
@@ -208,7 +216,7 @@ int main(int argc, char *argv[]) {
   // parsing parameters
   TParams params = getParams(argc, argv);
   if(params.ecode != EOK) {
-    cout<<HELP_MSG<<endl;
+    cout<<"\n"<<HELP_MSG<<endl;
     return params.ecode;
   }
 

@@ -19,6 +19,24 @@ Options:
 -p <port> - specification port
 ```
 
+```
+./tests/client_root/ipk-client
+Port is required.
+Hostname is required.
+Mode (write or read) is required.
+File is required.
+
+Example of usage:
+
+./ipk-client -h <host> -p <port> [-r|-w] file
+
+Options:
+-h  -- show help message
+-h <host> - hostname
+-p <port> - specification port
+[-r|-w] - file
+```
+
 ## Omezení programu:
 
 ## Rozšíření programu:
