@@ -8,6 +8,8 @@
 #ifndef _ipk_server_H_
 #define _ipk_server_H_
 
+#include "ipk-server-params.h"
+#include "ipk-server-error.h"
 #include "../ipk-protocol/ipk-protocol-error.h"
 
 #include <ctype.h>
@@ -41,7 +43,7 @@ using namespace std;
 #define BUFFER_SIZE 1448
 
 /**
- * Arguments for pthread created for each node.
+ * Arguments for pthread created for each client.
  */
 typedef struct pthread_args {
   struct params *params;
@@ -51,22 +53,6 @@ typedef struct pthread_args {
 } Tpthread_args;
 
 /**
- * Error codes.
- */
-enum ecodes {
-  EOK = 0,              // ok, even used in protocol error
-  EOPT = 1,             // invalid option (option argument is missing,
-                        // unknown option, unknown option character)
-  EGETADDRINFO = 2,
-  ESOCKET = 3,
-  EBIND = 4,
-  ELISTEN = 5,
-  EFILE = 6,
-  ETHREAD = 7,
-  ETHREAD_CREATE = 8,
-};
-
-/**
  * Transfer file modes.
  */
 enum modes {
@@ -74,20 +60,8 @@ enum modes {
   WRITE = 1
 };
 
-/**
- * Terminal parameters:
- */
-typedef struct params {
-  string port;
-  int show_help_message;
-  int ecode;
-  int nodes_count;
-  int requests_count;
-} TParams;
-
 void error(int code, string msg);
 void catchsignal(int sig);
-TParams getParams(int argc, char *argv[]);
 void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]);
 void serverError(TParams* params, int node_index, int client_sock, int code, string msg);
 void* handleServer(void *threadarg);
