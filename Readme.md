@@ -41,6 +41,8 @@ Options:
 
 ## Rozšíření programu:
 
+Přidaný volitelný parametr udávající konečný počet requestů, které server obslouží `[-r <number>]`. Defaultně neomezeně.
+
 Podpora IPv6.
 
 ## Testování programu:
