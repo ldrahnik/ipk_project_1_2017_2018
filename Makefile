@@ -10,15 +10,19 @@ PROJECT_README			= Readme.md
 
 CLIENT_NAME     		= ipk-client
 CLIENT_NAME_TESTS  		= ipk-client-tests
-CLIENT_SOURCES  		= src/ipk-client/*.cpp src/ipk-client/*.h
-CLIENT_OBJECTS  		= src/ipk-client/*.o
+CLIENT_SOURCES_CODE     = $(shell find src/ipk-client/ -name *.cpp)
+CLIENT_SOURCES_HEADERS  = src/ipk-client/*.h
+CLIENT_SOURCES  		= $(CLIENT_SOURCES_CODE) $(CLIENT_SOURCES_HEADERS)
+CLIENT_OBJECTS  		= $(CLIENT_SOURCES_CODE:%.cpp=%.o)
 
 ############################################ SERVER
 
 SERVER_NAME     		= ipk-server
 SERVER_NAME_TESTS  		= ipk-server-tests
-SERVER_SOURCES  		= src/ipk-server/*.cpp src/ipk-server/*.h
-SERVER_OBJECTS  		= src/ipk-server/*.o
+SERVER_SOURCES_CODE     = $(shell find src/ipk-server/ -name *.cpp)
+SERVER_SOURCES_HEADERS  = src/ipk-server/*.h
+SERVER_SOURCES  		= $(SERVER_SOURCES_CODE) $(SERVER_SOURCES_HEADERS)
+SERVER_OBJECTS  		= $(SERVER_SOURCES_CODE:%.cpp=%.o)
 
 ############################################
 
