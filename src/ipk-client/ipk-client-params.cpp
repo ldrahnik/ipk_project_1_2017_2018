@@ -50,8 +50,11 @@ TParams getParams(int argc, char *argv[]) {
       }
   }
 
-  if(params.host.empty() || !isHostValid(params.host)) {
-    fprintf(stderr, "Host is not valid.\n");
+  if(params.host.empty()) {
+    fprintf(stderr, "Hostname is required.\n");
+    params.ecode = EOPT;
+  } else if(!isHostValid(params.host)) {
+    fprintf(stderr, "Hostname is not valid.\n");
     params.ecode = EOPT;
   }
   if(params.port.empty()) {
