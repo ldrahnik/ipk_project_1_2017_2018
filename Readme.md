@@ -20,7 +20,8 @@ Options:
 ```
 
 ```
-./tests/client_root/ipk-client
+./ipk-client
+Hostname is required.
 Port is required.
 Hostname is required.
 Mode (write or read) is required.
@@ -28,13 +29,12 @@ File is required.
 
 Example of usage:
 
-./ipk-client -h <host> -p <port> [-r|-w] file
+./ipk-client -h <host> -p <number> -r|-w <file>
 
 Options:
--h  -- show help message
 -h <host> - hostname
--p <port> - specification port
-[-r|-w] - file
+-p <number> - port
+-r|-w <file> - read/write file
 ```
 
 ## Omezení programu:

@@ -9,12 +9,11 @@
 
 const char *HELP_MSG = {
   "Example of usage:\n\n"
-  "./ipk-client -h <host> -p <port> [-r|-w] file\n\n"
+  "./ipk-client -h <host> -p <number> -r|-w <file>\n\n"
   "Options:\n"
-  "-h  -- show help message\n"
   "-h <host> - hostname\n"
-  "-p <port> - specification port\n"
-  "[-r|-w] - file"
+  "-p <number> - port\n"
+  "-r|-w <file> - read/write file"
 };
 
 /**
