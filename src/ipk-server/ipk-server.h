@@ -60,7 +60,6 @@ enum modes {
   WRITE = 1
 };
 
-void error(int code, string msg);
 void catchsignal(int sig);
 void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]);
 void serverError(TParams* params, int node_index, int client_sock, int code, string msg);

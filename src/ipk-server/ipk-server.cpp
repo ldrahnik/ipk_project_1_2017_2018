@@ -22,14 +22,6 @@ const char *HELP_MSG = {
   "-p <port> - specification port\n"
 };
 
-/**
- * Print error message.
- */
-void error(int code, string msg) {
-	cerr<<msg<< endl;
-  exit(code);
-}
-
 void catchsignal(int sig) {
   if(sig == SIGINT) {
     G_break = 1;
@@ -51,7 +43,7 @@ void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]) {
 }
 
 void serverError(TParams* params, int node_index, int client_sock, int code, string msg) {
-  cerr<<code<<msg<<endl;
+  printError(code, msg);
   cout<<"[CLIENT #"<<node_index<<"] Is leaving with error\n"<<endl;
   close(client_sock);
   params->nodes_count--;
@@ -273,20 +265,28 @@ int main(int argc, char *argv[]) {
   hints.ai_flags = AI_PASSIVE;
 
   // get addrinfo
-  if(getaddrinfo(NULL, params.port.c_str(), &hints, &results) != 0)
-    error(EGETADDRINFO, "Host is not valid.\n");
+  if(getaddrinfo(NULL, params.port.c_str(), &hints, &results) != 0) {
+    printError(EGETADDRINFO, "Host is not valid.\n");
+    return EGETADDRINFO;
+  }
 
   // create socket
-  if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1)
-    error(ESOCKET, "Socket can not be created.\n");
+  if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1) {
+    printError(ESOCKET, "Socket can not be created.\n");
+    return ESOCKET;
+  }
 
   // bind socket
-  if(bind(sock, results->ai_addr, results->ai_addrlen) != 0)
-    error(EBIND, "Bind failed.");
+  if(bind(sock, results->ai_addr, results->ai_addrlen) != 0) {
+    printError(EBIND, "Bind failed.");
+    return EBIND;
+  }
 
   // listen
-  if(listen(sock, MAX_CLIENTS) < 0)
-		error(ELISTEN, "Listen failed.");
+  if(listen(sock, MAX_CLIENTS) < 0) {
+	printError(ELISTEN, "Listen failed.");
+	return ELISTEN;
+  }
 
   cout<<"[SERVER] Server is running on port: "<<params.port<<"\n"<<endl;
 
@@ -317,8 +317,10 @@ int main(int argc, char *argv[]) {
     threadarg->sock = client_sock;
 
     // pthread per client
-    if(pthread_create(&threads[params.nodes_count], NULL, handleServer, (void *) threadarg) != 0)
-      error(ETHREAD, "Unable to create thread.\n");
+    if(pthread_create(&threads[params.nodes_count], NULL, handleServer, (void *) threadarg) != 0) {
+      printError(ETHREAD, "Unable to create thread.\n");
+      return ETHREAD;
+    }
 
     // increment client pthreads
     params.nodes_count++;

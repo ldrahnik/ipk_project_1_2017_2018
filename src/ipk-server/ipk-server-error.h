@@ -7,6 +7,11 @@
 #ifndef _ipk_server_error_H_
 #define _ipk_server_error_H_
 
+#include <string>
+#include <iostream>
+
+using namespace std;
+
 enum server_ecode {
   EOK = 0,
   EOPT = 1,
@@ -18,5 +23,7 @@ enum server_ecode {
   ETHREAD = 7,
   ETHREAD_CREATE = 8,
 };
+
+void printError(int code, std::string msg);
 
 #endif
