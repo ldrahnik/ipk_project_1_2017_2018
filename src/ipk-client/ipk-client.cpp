@@ -70,19 +70,19 @@ int main(int argc, char *argv[]) {
 
   // try get addrinfo
   if((getaddrinfo(params.host.c_str(), params.port.c_str(), &host_info, &host_ips)) != 0) {
-	printError(EOPT, "Hostname address is not valid.");
-	return EOPT;
+    printError(EOPT, "Hostname address is not valid.");
+    return EOPT;
   }
 
-	// create socket, connect on given addres
-	for (rp = host_ips; rp != NULL; rp = rp->ai_next) {
+  // create socket, connect on given addres
+  for (rp = host_ips; rp != NULL; rp = rp->ai_next) {
     if((sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol)) == -1)
       continue;
-		if(connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
-			break;
-		else
-			close(sock);
-	}
+       if(connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+         break;
+       else
+         close(sock);
+  }
 
   // write
   if(params.transfer_mode == WRITE) {
@@ -148,20 +148,20 @@ int main(int argc, char *argv[]) {
   }
   // read
   else {
-	char buffer[BUFFER_SIZE];
-	int len = params.filepath.length();
-	char response = STATUS_CODE_EUNKNOWN;
+    char buffer[BUFFER_SIZE];
+    int len = params.filepath.length();
+    char response = STATUS_CODE_EUNKNOWN;
 
     // header
-	buffer[0] = READ;
-	memcpy(buffer+1, &len, sizeof(int));
-	params.filepath.copy(buffer+1+sizeof(int), len);
+    buffer[0] = READ;
+    memcpy(buffer+1, &len, sizeof(int));
+    params.filepath.copy(buffer+1+sizeof(int), len);
 
     // send header
-	send(sock, buffer, 1+sizeof(int)+len, 0);
+    send(sock, buffer, 1+sizeof(int)+len, 0);
 
     // waiting on response on header
-	if((recv(sock, &response, 1, 0)) != 1) {
+    if((recv(sock, &response, 1, 0)) != 1) {
       printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
       return STATUS_CODE_EHEADER;
     }
@@ -184,12 +184,12 @@ int main(int argc, char *argv[]) {
         return STATUS_CODE_EUNKNOWN;
     }
 
-	// data receiving
-	long total_received = 0;
+    // data receiving
+    long total_received = 0;
 
-	cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
+    cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
 
-	do {
+    do {
       if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
         printError(STATUS_CODE_EFILE_CONTENT, "Transmission content");
         return STATUS_CODE_EFILE_CONTENT;
@@ -199,14 +199,14 @@ int main(int argc, char *argv[]) {
 
       if(recv_len == 0) {
          cout<<"Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
-    	 break;
+         break;
       }
       total_received += recv_len;
 
       cout<<file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<file.gcount()<<" B"<<endl;
     } while (true);
 
-	file.close();
+    file.close();
   }
 
   close(sock);

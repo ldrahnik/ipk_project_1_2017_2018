@@ -51,15 +51,15 @@ TParams getParams(int argc, char *argv[]) {
   }
 
   if(params.host.empty() || !isHostValid(params.host)) {
-	fprintf(stderr, "Host is not valid.\n");
+    fprintf(stderr, "Host is not valid.\n");
     params.ecode = EOPT;
   }
   if(params.port.empty()) {
-	fprintf(stderr, "Port is required.\n");
+    fprintf(stderr, "Port is required.\n");
     params.ecode = EOPT;
   }
   if(params.host.empty()) {
-	fprintf(stderr, "Hostname is required.\n");
+    fprintf(stderr, "Hostname is required.\n");
     params.ecode = EOPT;
   }
   if(params.transfer_mode == -1) {

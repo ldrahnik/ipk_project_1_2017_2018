@@ -284,8 +284,8 @@ int main(int argc, char *argv[]) {
 
   // listen
   if(listen(sock, MAX_CLIENTS) < 0) {
-	printError(ELISTEN, "Listen failed.");
-	return ELISTEN;
+    printError(ELISTEN, "Listen failed.");
+    return ELISTEN;
   }
 
   cout<<"[SERVER] Server is running on port: "<<params.port<<"\n"<<endl;
