@@ -18,20 +18,6 @@ const char *HELP_MSG = {
 };
 
 /**
- * When is pressed ctrl+c.
- */
-static int G_break = 0;
-
-/**
- * Signal handler.
- */
-void catchsignal(int sig) {
-  if(sig == SIGINT) {
-    G_break = 1;
-  }
-}
-
-/**
  * Print error message.
  */
 void error(int code, string msg) {

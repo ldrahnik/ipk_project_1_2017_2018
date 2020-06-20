@@ -7,9 +7,7 @@
 
 #include "ipk-server.h"
 
-/**
- * When is pressed ctrl+c.
- */
+// When is pressed ctrl+c.
 static int G_break = 0;
 
 /**
@@ -32,9 +30,6 @@ void error(int code, string msg) {
   exit(code);
 }
 
-/**
- * Signal handler.
- */
 void catchsignal(int sig) {
   if(sig == SIGINT) {
     G_break = 1;

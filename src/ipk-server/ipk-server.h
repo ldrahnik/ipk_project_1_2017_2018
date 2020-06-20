@@ -20,10 +20,10 @@
 #include <pthread.h>
 #include <netdb.h>
 #include <errno.h>
-#include <signal.h>
 #include <time.h>
 #include <math.h>
 #include <limits.h>
+#include <signal.h>
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
