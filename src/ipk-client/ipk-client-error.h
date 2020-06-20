@@ -7,6 +7,11 @@
 #ifndef _ipk_client_error_H_
 #define _ipk_client_error_H_
 
+#include <string>
+#include <iostream>
+
+using namespace std;
+
 enum client_ecode {
   EOK = 0,
   EOPT = 1,
@@ -16,5 +21,7 @@ enum client_ecode {
   ELISTEN = 5,
   EFILE = 6,
 };
+
+void printError(int code, std::string msg);
 
 #endif
