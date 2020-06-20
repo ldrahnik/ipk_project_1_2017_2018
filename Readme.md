@@ -50,4 +50,6 @@ make test
 bash ./tests/tests.sh
 *******TEST 1 PASSED
 *******TEST 1.1 PASSED
+*******TEST 2 PASSED
+*******TEST 2.1 PASSED
 ```
