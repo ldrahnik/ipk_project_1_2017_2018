@@ -41,10 +41,13 @@ Options:
 
 ## Rozšíření programu:
 
+Podpora IPv6.
+
 ## Testování programu:
 
 ```
 make test
 bash ./tests/tests.sh
 *******TEST 1 PASSED
+*******TEST 1.1 PASSED
 ```

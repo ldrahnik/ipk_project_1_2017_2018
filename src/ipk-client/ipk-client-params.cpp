@@ -50,6 +50,10 @@ TParams getParams(int argc, char *argv[]) {
       }
   }
 
+  if(params.host.empty() || !isHostValid(params.host)) {
+	fprintf(stderr, "Host is not valid.\n");
+    params.ecode = EOPT;
+  }
   if(params.port.empty()) {
 	fprintf(stderr, "Port is required.\n");
     params.ecode = EOPT;
@@ -57,7 +61,7 @@ TParams getParams(int argc, char *argv[]) {
   if(params.host.empty()) {
 	fprintf(stderr, "Hostname is required.\n");
     params.ecode = EOPT;
-  } 
+  }
   if(params.transfer_mode == -1) {
     fprintf(stderr, "Mode (write or read) is required.\n");
     params.ecode = EOPT;
@@ -68,4 +72,22 @@ TParams getParams(int argc, char *argv[]) {
   }
 
   return params;
+}
+
+int isHostValid(std::string host) {
+  struct addrinfo hints;
+  struct addrinfo* results;
+
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = 0;
+  hints.ai_flags = AI_ADDRCONFIG;
+
+  if(getaddrinfo(host.c_str(), NULL, &hints, &results) == 0) {
+    return 1;
+  }
+
+  freeaddrinfo(results);
+  return 0;
 }

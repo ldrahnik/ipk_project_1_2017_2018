@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
   struct addrinfo host_info;
   struct addrinfo *host_ips, *rp;
   memset(&host_info, 0, sizeof host_info);
-  host_info.ai_family = AF_INET;
+  host_info.ai_family = AF_UNSPEC;
   host_info.ai_socktype = SOCK_STREAM;
   ssize_t recv_len;
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
   // try get addrinfo
   if((getaddrinfo(params.host.c_str(), params.port.c_str(), &host_info, &host_ips)) != 0)
-		error(EGETADDRINFO, "Hostname address is not valid.");
+		error(EOPT, "Hostname address is not valid.");
 
 	// create socket, connect on given addres
 	for (rp = host_ips; rp != NULL; rp = rp->ai_next) {

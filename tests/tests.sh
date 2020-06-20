@@ -9,11 +9,11 @@
 TEST_DIRECTORY=`dirname $0`
 CLIENT_ROOT=$TEST_DIRECTORY/client_root
 SERVER_ROOT=$TEST_DIRECTORY/server_root
-PORT=50118
+PORT=50124
 TEST_FILE_NAME=test.txt
 TEST_FILE=$TEST_DIRECTORY/$TEST_FILE_NAME
 
-# 1 (upload file = client -> server)
+# 1 (upload file IPv4)
 $SERVER_ROOT/ipk-server -r 1 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -w $TEST_FILE > /dev/null 2>&1
 if [ -f $TEST_FILE_NAME ]; then
     echo "*******TEST 1 PASSED";
@@ -21,5 +21,16 @@ else
     echo "TEST 1 FAILED";
 fi
 
-# úklid
-rm $TEST_FILE_NAME
+# 1 úklid
+rm -f $TEST_FILE_NAME
+
+# 1 (upload file IPv6)
+$SERVER_ROOT/ipk-server -r 1 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h ::1 -p $PORT -w $TEST_FILE > /dev/null 2>&1
+if [ -f $TEST_FILE_NAME ]; then
+    echo "*******TEST 1.1 PASSED";
+else
+    echo "TEST 1.1 FAILED";
+fi
+
+# 1.1 úklid
+rm -f $TEST_FILE_NAME

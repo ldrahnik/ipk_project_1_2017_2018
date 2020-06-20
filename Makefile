@@ -9,33 +9,35 @@ PROJECT_README			= Readme.md
 ########################################### CLIENT
 
 CLIENT_NAME     		= ipk-client
+CLIENT_NAME_TESTS  		= ipk-client-tests
 CLIENT_SOURCES  		= src/ipk-client/*.cpp src/ipk-client/*.h
-CLIENT_OBJECTS  		= $(CLIENT_SOURCES:.cpp=.o)
+CLIENT_OBJECTS  		= src/ipk-client/*.o
 
 ############################################ SERVER
 
 SERVER_NAME     		= ipk-server
+SERVER_NAME_TESTS  		= ipk-server-tests
 SERVER_SOURCES  		= src/ipk-server/*.cpp src/ipk-server/*.h
-SERVER_OBJECTS  		= $(SERVER_SOURCES:.cpp=.o)
+SERVER_OBJECTS  		= src/ipk-server/*.o
 
 ############################################
 
 CC              		= g++
 CFLAGS 					= -Wall -Wextra -pedantic -pthread
 
-all: $(CLIENT_NAME) $(SERVER_NAME)
+all: $(CLIENT_NAME) $(CLIENT_NAME_TESTS) $(SERVER_NAME) $(SERVER_NAME_TESTS)
 
 $(CLIENT_NAME):	$(CLIENT_OBJECTS)
 		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o $@
 
-$(CLIENT_NAME_TEST): $(CLIENT_OBJECTS)
-		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o ./tests/client_root/$@
+$(CLIENT_NAME_TESTS): $(CLIENT_OBJECTS)
+		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o ./tests/client_root/$(CLIENT_NAME)
 
 $(SERVER_NAME):	$(SERVER_OBJECTS)
 				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o $@
 
-$(SERVER_NAME_TEST): $(SERVER_OBJECTS)
-				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o ./tests/server_root/$@
+$(SERVER_NAME_TESTS): $(SERVER_OBJECTS)
+				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o ./tests/server_root/$(SERVER_NAME)
 
 clean:
 	rm -rf *~ $(SERVER_OBJECTS) $(CLIENT_OBJECTS)

@@ -9,8 +9,12 @@
 
 #include "ipk-client-error.h"
 
+#include <stdio.h>
+#include <cstring>
 #include <string>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 enum transfer_mode {
   READ = 0,
@@ -20,11 +24,12 @@ enum transfer_mode {
 typedef struct params {
   std::string port;                   // option p
   std::string host;                   // option h
-  std::string filepath;               // option [r|w]
+  std::string filepath;               // value of option [r|w]
   int transfer_mode;                  // option [r|w] r = 0, w = 1
   int ecode;                          // error code
 } TParams;
 
 TParams getParams(int argc, char *argv[]);
+int isHostValid(std::string host);
 
 #endif
