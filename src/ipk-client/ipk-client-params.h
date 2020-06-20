@@ -8,6 +8,7 @@
 #define _ipk_client_params_H_
 
 #include "ipk-client-error.h"
+#include "../ipk-protocol/ipk-protocol.h"
 
 #include <stdio.h>
 #include <cstring>
@@ -15,11 +16,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
-enum transfer_mode {
-  READ = 0,
-  WRITE = 1
-};
 
 typedef struct params {
   std::string port;                   // option p

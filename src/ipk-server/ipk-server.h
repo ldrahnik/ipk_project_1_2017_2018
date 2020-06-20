@@ -10,7 +10,7 @@
 
 #include "ipk-server-params.h"
 #include "ipk-server-error.h"
-#include "../ipk-protocol/ipk-protocol-status-code.h"
+#include "../ipk-protocol/ipk-protocol.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -51,14 +51,6 @@ typedef struct pthread_args {
   struct addrinfo *addrinfo;
   int sock;
 } Tpthread_args;
-
-/**
- * Transfer file modes.
- */
-enum modes {
-  READ = 0,
-  WRITE = 1
-};
 
 void catchsignal(int sig);
 void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]);

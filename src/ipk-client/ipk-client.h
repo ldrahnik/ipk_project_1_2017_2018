@@ -10,7 +10,7 @@
 
 #include "ipk-client-params.h"
 #include "ipk-client-error.h"
-#include "../ipk-protocol/ipk-protocol-status-code.h"
+#include "../ipk-protocol/ipk-protocol.h"
 
 #include <ctype.h>
 #include <stdio.h>

@@ -4,8 +4,13 @@
  * Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
  */
 
-#ifndef _ipk_protocol_status_code_H_
-#define _ipk_protocol_status_code_H_
+#ifndef _ipk_protocol_H_
+#define _ipk_protocol_H_
+
+enum protocol_transfer_mode {
+  READ = 0,
+  WRITE = 1
+};
 
 enum protocol_status_code {
   STATUS_CODE_OK = 0,
