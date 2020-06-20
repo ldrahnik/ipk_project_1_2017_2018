@@ -17,15 +17,6 @@ const char *HELP_MSG = {
 };
 
 /**
- * Clean mess when is program closing successfuly or with error.
- *
- * @return void
- */
-void clean() {
-
-}
-
-/**
  * Entry point of application.
  *
  * @param int argc
@@ -209,7 +200,6 @@ int main(int argc, char *argv[]) {
   }
 
   close(sock);
-  clean();
 
   return ecode;
 }

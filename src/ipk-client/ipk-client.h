@@ -48,7 +48,6 @@ using namespace std;
 #define BUFFER_SIZE 1448
 #define MAX_CLIENTS 128
 
-void clean();
 int main(int argc, char *argv[]);
 
 #endif
