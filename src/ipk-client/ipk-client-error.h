@@ -20,6 +20,8 @@ enum client_ecode {
   EBIND = 4,
   ELISTEN = 5,
   EFILE = 6,
+  ESEND = 7,
+  EALLOC = 8,
 };
 
 void printError(int code, std::string msg);

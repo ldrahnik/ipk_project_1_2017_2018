@@ -74,11 +74,32 @@ int main(int argc, char *argv[]) {
          close(sock);
   }
 
+  // filepath length
+  int file_path_length = 0;
+  file_path_length = params.filepath.length();
+
+  // buffer
+  char* buffer;
+  buffer = (char*)malloc(sizeof(Protocol_header) + file_path_length + 1);
+  if(buffer == NULL) {
+    fprintf(stderr, "Allocation fails.\n");
+    return EALLOC;
+  }
+
+  // header
+  Protocol_header* header = (Protocol_header*)buffer;
+  header->file_path_length = file_path_length;
+
+  // file_path follows-up header
+  params.filepath.copy(buffer + sizeof(Protocol_header), file_path_length);
+  buffer[sizeof(Protocol_header) + file_path_length] = '\0';
+
+  // header response
+  char response = STATUS_CODE_EUNKNOWN;
+
   // write
   if(params.transfer_mode == WRITE) {
-    char buffer[BUFFER_SIZE];
-    int len = params.filepath.length();
-    long total_sent = 0;
+
     long file_size = 0;
 
     file.seekg(0, file.end);
@@ -86,44 +107,51 @@ int main(int argc, char *argv[]) {
     file.seekg(0, file.beg);
 
     // header
-    buffer[0] = WRITE;
-    memcpy(buffer+1, &len, sizeof(int));
-    params.filepath.copy(buffer+1+sizeof(int), len);
-    memcpy(buffer+1+sizeof(int) + len, &file_size, sizeof(long));
+    header->transfer_mode = WRITE;
+    header->file_size = file_size;
 
     // send header
-    send(sock, buffer, 1 + sizeof(int)+len+sizeof(long), 0);
+    if((send(sock, buffer, sizeof(Protocol_header) + file_path_length + 1, 0)) == -1) {
+      printError(ESEND, "Header was not succesfully sent.");
+      free(buffer);
+      return ESEND;
+    }
 
-    // waiting on response on header
-    char response = STATUS_CODE_EUNKNOWN;
-
-    // waiting on response on header
-	if((recv(sock, &response, 1, 0)) != 1)
+    // waiting on header response
+	if((recv(sock, &response, 1, 0)) == -1) {
       printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
-
-    // header response
+      free(buffer);
+      return STATUS_CODE_EHEADER;
+    }
     switch(response) {
       case STATUS_CODE_EOPEN_FILE:
         printError(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
+        free(buffer);
         return STATUS_CODE_EOPEN_FILE;
       case STATUS_CODE_ELOCK_FILE:
         printError(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
+        free(buffer);
         return STATUS_CODE_ELOCK_FILE;
       case STATUS_CODE_EHEADER:
         printError(STATUS_CODE_EHEADER, "Header error.");
+        free(buffer);
         return STATUS_CODE_EHEADER;
       case STATUS_CODE_OK:
         break;
       case STATUS_CODE_EUNKNOWN:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
+        free(buffer);
         return STATUS_CODE_EUNKNOWN;
       default:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
+        free(buffer);
         return STATUS_CODE_EUNKNOWN;
     }
 
-    // sending file
     cout<<"Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
+
+    // sending file
+    long total_sent = 0;
     while(file.read(buffer, BUFFER_SIZE)) {
       send(sock, buffer, BUFFER_SIZE, 0);
       total_sent += file.gcount();
@@ -138,50 +166,57 @@ int main(int argc, char *argv[]) {
   }
   // read
   else {
-    char buffer[BUFFER_SIZE];
-    int len = params.filepath.length();
-    char response = STATUS_CODE_EUNKNOWN;
 
     // header
-    buffer[0] = READ;
-    memcpy(buffer+1, &len, sizeof(int));
-    params.filepath.copy(buffer+1+sizeof(int), len);
+    header->transfer_mode = READ;
+    header->file_size = 0;
 
     // send header
-    send(sock, buffer, 1+sizeof(int)+len, 0);
-
-    // waiting on response on header
-    if((recv(sock, &response, 1, 0)) != 1) {
-      printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
-      return STATUS_CODE_EHEADER;
+    if((send(sock, buffer, sizeof(Protocol_header) + file_path_length, 0)) == -1) {
+      printError(ESEND, "Header was not succesfully sent.");
+      free(buffer);
+      return ESEND;
     }
 
-    // header response
+    // waiting on header response
+    if((recv(sock, &response, 1, 0)) != 1) {
+      printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
+      free(buffer);
+      return STATUS_CODE_EHEADER;
+    }
     switch(response) {
       case STATUS_CODE_EOPEN_FILE:
         printError(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
+        free(buffer);
         return STATUS_CODE_EOPEN_FILE;
       case STATUS_CODE_ELOCK_FILE:
         printError(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
+        free(buffer);
         return STATUS_CODE_ELOCK_FILE;
       case STATUS_CODE_EHEADER:
         printError(STATUS_CODE_EHEADER, "Header error.");
+        free(buffer);
         return STATUS_CODE_EHEADER;
       case STATUS_CODE_OK:
         break;
+      case STATUS_CODE_EUNKNOWN:
+        printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
+        free(buffer);
+        return STATUS_CODE_EUNKNOWN;
       default:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
+        free(buffer);
         return STATUS_CODE_EUNKNOWN;
     }
 
-    // data receiving
-    long total_received = 0;
-
     cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
 
+    // receiving file
+    long total_received = 0;
     do {
       if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
         printError(STATUS_CODE_EFILE_CONTENT, "Transmission content");
+        free(buffer);
         return STATUS_CODE_EFILE_CONTENT;
       }
 
@@ -200,6 +235,7 @@ int main(int argc, char *argv[]) {
   }
 
   close(sock);
+  free(buffer);
 
   return ecode;
 }

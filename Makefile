@@ -8,40 +8,40 @@ PROJECT_README			= Readme.md
 
 ########################################### CLIENT
 
-CLIENT_NAME     		= ipk-client
-CLIENT_NAME_TESTS  		= ipk-client-tests
-CLIENT_SOURCES_CODE     = $(shell find src/ipk-client/ -name *.cpp)
-CLIENT_SOURCES_HEADERS  = src/ipk-client/*.h
-CLIENT_SOURCES  		= $(CLIENT_SOURCES_CODE) $(CLIENT_SOURCES_HEADERS)
-CLIENT_OBJECTS  		= $(CLIENT_SOURCES_CODE:%.cpp=%.o)
+CLIENT_NAME				= ipk-client
+CLIENT_NAME_TESTS		= ipk-client-tests
+CLIENT_SOURCES_CODE		= $(shell find src/ipk-client/ -name *.cpp)
+CLIENT_SOURCES_HEADERS	= src/ipk-client/*.h
+CLIENT_SOURCES			= $(CLIENT_SOURCES_CODE) $(CLIENT_SOURCES_HEADERS)
+CLIENT_OBJECTS			= $(CLIENT_SOURCES_CODE:%.cpp=%.o)
 
 ############################################ SERVER
 
-SERVER_NAME     		= ipk-server
-SERVER_NAME_TESTS  		= ipk-server-tests
-SERVER_SOURCES_CODE     = $(shell find src/ipk-server/ -name *.cpp)
-SERVER_SOURCES_HEADERS  = src/ipk-server/*.h
-SERVER_SOURCES  		= $(SERVER_SOURCES_CODE) $(SERVER_SOURCES_HEADERS)
-SERVER_OBJECTS  		= $(SERVER_SOURCES_CODE:%.cpp=%.o)
+SERVER_NAME				= ipk-server
+SERVER_NAME_TESTS		= ipk-server-tests
+SERVER_SOURCES_CODE		= $(shell find src/ipk-server/ -name *.cpp)
+SERVER_SOURCES_HEADERS	= src/ipk-server/*.h
+SERVER_SOURCES			= $(SERVER_SOURCES_CODE) $(SERVER_SOURCES_HEADERS)
+SERVER_OBJECTS			= $(SERVER_SOURCES_CODE:%.cpp=%.o)
 
 ############################################
 
-CC              		= g++
-CFLAGS 					= -Wall -Wextra -pedantic -pthread
+CC						= g++
+CFLAGS					= -Wall -Wextra -pedantic -pthread
 
 all: $(CLIENT_NAME) $(CLIENT_NAME_TESTS) $(SERVER_NAME) $(SERVER_NAME_TESTS)
 
-$(CLIENT_NAME):	$(CLIENT_OBJECTS)
-		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o $@
+$(CLIENT_NAME): $(CLIENT_OBJECTS)
+	$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o $@
 
 $(CLIENT_NAME_TESTS): $(CLIENT_OBJECTS)
-		$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o ./tests/client_root/$(CLIENT_NAME)
+	$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o ./tests/client_root/$(CLIENT_NAME)
 
 $(SERVER_NAME):	$(SERVER_OBJECTS)
-				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o $@
+	$(CC) $(CFLAGS) $(SERVER_SOURCES) -o $@
 
 $(SERVER_NAME_TESTS): $(SERVER_OBJECTS)
-				$(CC) $(CFLAGS) $(SERVER_SOURCES) -o ./tests/server_root/$(SERVER_NAME)
+	$(CC) $(CFLAGS) $(SERVER_SOURCES) -o ./tests/server_root/$(SERVER_NAME)
 
 clean:
 	rm -rf *~ $(SERVER_OBJECTS) $(CLIENT_OBJECTS)

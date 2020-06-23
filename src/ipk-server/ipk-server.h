@@ -40,7 +40,6 @@
 using namespace std;
 
 #define MAX_CLIENTS 128
-#define BUFFER_SIZE 1448
 
 /**
  * Arguments for pthread created for each client.

@@ -7,6 +7,17 @@
 #ifndef _ipk_protocol_H_
 #define _ipk_protocol_H_
 
+#define BUFFER_SIZE 1448
+
+#pragma pack(push, 1)
+typedef struct protocol_header {
+  int transfer_mode;
+  int file_path_length;
+  long file_size;
+} Protocol_header;
+// char *file_path; (variable length)
+#pragma pack(pop)
+
 enum protocol_transfer_mode {
   READ = 0,
   WRITE = 1

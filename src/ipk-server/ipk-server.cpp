@@ -7,12 +7,6 @@
 
 #include "ipk-server.h"
 
-// When is pressed ctrl+c.
-static int G_break = 0;
-
-/**
- * Help message.
- */
 const char *HELP_MSG = {
   "Example of usage:\n\n"
   "./ipk-server [-h] [-r <number>] -p <port> \n\n"
@@ -22,17 +16,16 @@ const char *HELP_MSG = {
   "-p <port> - specification port\n"
 };
 
+// when is pressed ctrl+c
+static int G_break = 0;
+
 void catchsignal(int sig) {
   if(sig == SIGINT) {
     G_break = 1;
   }
 }
 
-/**
- * Clean mess when is program closing successfuly or with error.
- *
- * @return void
- */
+// free all allocated memory
 void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]) {
   for(int index = 0; index < params->nodes_count; index++) {
     close(threads_args[index]->sock);
@@ -58,88 +51,77 @@ void serverEnd(TParams* params, int node_index, int client_sock) {
 void* handleServer(void *threadarg) {
   int ecode = EOK;
 
+  // thread args
   struct pthread_args *pthread_args = (struct pthread_args *) threadarg;
-  //struct node node = (struct node) pthread_args->params->nodes[pthread_args->node_index];
-  //struct addrinfo *addrinfo = pthread_args->addrinfo;
   TParams* params = (TParams*) pthread_args->params;
-  int client_sock = pthread_args->sock;
+  int sock = pthread_args->sock;
   int node_index = pthread_args->node_index;
-  ssize_t recv_len;
-  char buffer[BUFFER_SIZE];
+
+  // buffer's
+  char* buffer;
+  char* file_path;
+
+  buffer = (char*)malloc(sizeof(char) * IP_MAXPACKET);
+  if(buffer == NULL) {
+    fprintf(stderr, "Allocation fails.\n");
+    serverError(params, node_index, sock, EALLOC, "Alloc error.");
+    pthread_exit(NULL);
+  }
 
   cout<<"[CLIENT #"<<node_index<<"] Is starting\n"<<endl;
 
-  recv_len = recv(client_sock, buffer, 1+sizeof(int), 0);
-
-  if(recv_len != 1 + sizeof(int)) {
+  // incoming header
+  if(recv(sock, buffer, IP_MAXPACKET, 0) < 0) {
     ecode = STATUS_CODE_EHEADER;
-    send(client_sock, &ecode, 1, 0);
-    serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error.");
+    send(sock, &ecode, 1, 0);
+    free(buffer);
+    serverError(params, node_index, sock, STATUS_CODE_EHEADER, "Header error.");
     pthread_exit(NULL);
   }
+  Protocol_header* header = (Protocol_header*) buffer;
 
-  char mode = buffer[0];
-  int filepath_len;
-  memcpy(&filepath_len, buffer+1, sizeof(int));
-
-  // filename
-  recv_len = recv(client_sock, buffer, filepath_len, 0);
-
-  if(recv_len != filepath_len) {
-    ecode = STATUS_CODE_EHEADER;
-    send(client_sock, &ecode, 1, 0);
-    serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error.");
+  // file_path follows-up header
+  file_path = (char*)malloc(sizeof(char) * (header->file_path_length));
+  if(file_path == NULL) {
+    fprintf(stderr, "Allocation fails.\n");
+    serverError(params, node_index, sock, EALLOC, "Alloc error.");
     pthread_exit(NULL);
   }
-
-  // filename
-  buffer[filepath_len] = '\0';
-  string filepath = buffer;
+  file_path = (char*) (buffer + sizeof(Protocol_header));
 
   // write
-  if(mode == WRITE) {
-    // filesize
-    recv_len = recv(client_sock, buffer, sizeof(long), 0);
+  if(header->transfer_mode == WRITE) {
 
-    if(recv_len != sizeof(long)) {
-      ecode = STATUS_CODE_EHEADER;
-      send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error.");
-      pthread_exit(NULL);
-    }
-
-    long file_size;
-    memcpy(&file_size, buffer, sizeof(long));
-
-    //cout<<"[CLIENT #"<<node_index<<"] wants write a file. Sent filename: '"<<basename(filepath.c_str())<<"', Size: "<<file_size<<" B"<<endl;
-    cout<<"[CLIENT #"<<node_index<<"] Wants write a file. Sent filename: '"<<basename(filepath.c_str())<<"'"<<endl;
+    cout<<"[CLIENT #"<<node_index<<"] Wants write a file. Sent filename: '"<<basename(file_path)<<"', Size: "<<header->file_size<<" B"<<endl;
 
     // open file
     ofstream output_file;
-    output_file.open(basename(filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
+    output_file.open(basename(file_path), fstream::out | fstream::binary | fstream::trunc);
     if(!output_file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
-      send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + filepath);
+      send(sock, &ecode, 1, 0);
+      free(buffer);
+      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(file_path));
       pthread_exit(NULL);
     }
 
     // lock file
     /*if(flock(output_file.filedesc(), LOCK_EX | LOCK_NB) != 0) {
       ecode = ELOCK_FILE;
-      send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, ELOCK_FILE, "Server can not lock: " + basename(filepath));
+      send(sock, &ecode, 1, 0);
+      serverError(params, node_index, sock, ELOCK_FILE, "Server can not lock: " + basename(filepath));
     }*/
 
     // opened, locked => OK
-    send(client_sock, &ecode, 1, 0);
+    send(sock, &ecode, 1, 0);
 
     long total_received = 0;
+    ssize_t recv_len;
     do {
-      if((recv_len = recv(client_sock, buffer, BUFFER_SIZE, 0)) == -1) {
+      if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
         ecode = STATUS_CODE_EFILE_CONTENT;
-        send(client_sock, &ecode, 1, 0);
-        serverError(params, node_index, client_sock, STATUS_CODE_EFILE_CONTENT, "Error during data of file transmission");
+        send(sock, &ecode, 1, 0);
+        serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Error during data of file transmission");
         pthread_exit(NULL);
       }
       //cout<<"[CLIENT #"<<node_index<<"]"<<output_file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<filepath_len<<" B"<<endl;
@@ -149,15 +131,15 @@ void* handleServer(void *threadarg) {
       output_file.write(buffer, recv_len);
 
       if(recv_len == 0) {
-        if(file_size != total_received) {
+        if(header->file_size != total_received) {
           cout<<"[CLIENT #"<<node_index<<"] Transmition ended with error about file content size. Total number of received bytes: "<<total_received<<" B"<<endl;
           ecode = STATUS_CODE_EFILE_CONTENT;
-          send(client_sock, &ecode, 1, 0);
-          serverError(params, node_index, client_sock, STATUS_CODE_EFILE_CONTENT, "Server can not open: " + filepath);
+          send(sock, &ecode, 1, 0);
+          serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Server can not open: " + std::string(file_path));
           pthread_exit(NULL);
         } else {
           cout<<"[CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B"<<endl;
-          send(client_sock, &ecode, 1, 0);
+          send(sock, &ecode, 1, 0);
         }
       }
     } while (recv_len > 0);
@@ -169,29 +151,29 @@ void* handleServer(void *threadarg) {
     //flock(output_file.filedesc(), LOCK_UN);
   }
   // read
-  else if (mode == READ) {
-    cout<<"[CLIENT #"<<node_index<<"] wants read a file. Received filename: '"<<basename(filepath.c_str())<<"'"<<endl;
+  else if (header->transfer_mode == READ) {
+    cout<<"[CLIENT #"<<node_index<<"] wants read a file. Received filename: '"<<basename(file_path)<<"'"<<endl;
 
     // open file
     ifstream input_file;
-    input_file.open(filepath.c_str(), fstream::in | fstream::binary);
+    input_file.open(file_path, fstream::in | fstream::binary);
     if(!input_file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
-      send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + filepath);
+      send(sock, &ecode, 1, 0);
+      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(file_path));
       pthread_exit(NULL);
     }
 
     // lock file
     /*if(flock(input_file.filedesc(), LOCK_SH | LOCK_NB) != 0) {
       ecode = ELOCK_FILE;
-      send(client_sock, &ecode, 1, 0);
-      serverError(params, node_index, client_sock, ELOCK_FILE, "Server can not lock: " + filepath);
+      send(sock, &ecode, 1, 0);
+      serverError(params, node_index, sock, ELOCK_FILE, "Server can not lock: " + std::string(filepath));
       pthread_exit(NULL);
     }*/
 
     // opened, locked => OK
-    send(client_sock, &ecode, 1, 0);
+    send(sock, &ecode, 1, 0);
 
     long total_sent = 0;
     long file_size = 0;
@@ -201,12 +183,12 @@ void* handleServer(void *threadarg) {
     input_file.seekg(0, input_file.beg);
 
     while(input_file.read(buffer, BUFFER_SIZE)) {
-      send(client_sock, buffer, BUFFER_SIZE, 0);
+      send(sock, buffer, BUFFER_SIZE, 0);
       total_sent += input_file.gcount();
       cout<<"[CLIENT #"<<node_index<<"] "<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
 
-    send(client_sock, buffer, input_file.gcount(), 0);
+    send(sock, buffer, input_file.gcount(), 0);
     total_sent += input_file.gcount();
     cout<<"[CLIENT #"<<node_index<<"] Transmition ended. Total number of sent bytes: "<<total_sent<< " B / "<<file_size<<" B"<<endl;
 
@@ -219,23 +201,19 @@ void* handleServer(void *threadarg) {
   // else
   } else {
     ecode = STATUS_CODE_EHEADER;
-    send(client_sock, &ecode, 1, 0);
-    serverError(params, node_index, client_sock, STATUS_CODE_EHEADER, "Header error. Mode could not be recognized.");
+    send(sock, &ecode, 1, 0);
+    serverError(params, node_index, sock, ecode, "Header error. Transfer mode could not be recognized.");
+    free(buffer);
     pthread_exit(NULL);
   }
 
-  serverEnd(params, node_index, client_sock);
+  // clean
+  free(buffer);
+  serverEnd(params, node_index, sock);
+
   pthread_exit(NULL);
 }
 
-/**
- * Entry point of application.
- *
- * @param int argc
- * @param char *argv[]
- *
- * @return int
- */
 int main(int argc, char *argv[]) {
   int ecode = EOK;
   int sock, client_sock;
@@ -255,6 +233,7 @@ int main(int argc, char *argv[]) {
   }
   if(params.ecode != EOK) {
     cout<<"\n"<<HELP_MSG<<endl;
+    clean(&params, results, threads_args);
     return params.ecode;
   }
 
@@ -267,24 +246,28 @@ int main(int argc, char *argv[]) {
   // get addrinfo
   if(getaddrinfo(NULL, params.port.c_str(), &hints, &results) != 0) {
     printError(EGETADDRINFO, "Host is not valid.\n");
+    clean(&params, results, threads_args);
     return EGETADDRINFO;
   }
 
   // create socket
   if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1) {
     printError(ESOCKET, "Socket can not be created.\n");
+    clean(&params, results, threads_args);
     return ESOCKET;
   }
 
   // bind socket
   if(bind(sock, results->ai_addr, results->ai_addrlen) != 0) {
     printError(EBIND, "Bind failed.");
+    clean(&params, results, threads_args);
     return EBIND;
   }
 
   // listen
   if(listen(sock, MAX_CLIENTS) < 0) {
     printError(ELISTEN, "Listen failed.");
+    clean(&params, results, threads_args);
     return ELISTEN;
   }
 
@@ -304,7 +287,7 @@ int main(int argc, char *argv[]) {
     if((client_sock = accept(sock, (struct sockaddr *) &client_addr, &addr_size)) <= 0)
       continue;
 
-    cout<<"[SERVER] Joined client. Started handling personal thread with number: "<<params.nodes_count<<"\n"<<endl;
+    cout<<"[SERVER] Joined client. Started thread with number: "<<params.nodes_count<<"\n"<<endl;
 
     requests_count++;
 
