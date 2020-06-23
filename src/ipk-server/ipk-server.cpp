@@ -216,7 +216,8 @@ void* handleServer(void *threadarg) {
 
 int main(int argc, char *argv[]) {
   int ecode = EOK;
-  int sock, client_sock;
+  int sock = -1;
+  int client_sock = -1;
   struct addrinfo* results;
   struct addrinfo hints;
   struct sockaddr_storage client_addr;
