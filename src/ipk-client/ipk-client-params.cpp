@@ -61,10 +61,6 @@ TParams getParams(int argc, char *argv[]) {
     fprintf(stderr, "Port is required.\n");
     params.ecode = EOPT;
   }
-  if(params.host.empty()) {
-    fprintf(stderr, "Hostname is required.\n");
-    params.ecode = EOPT;
-  }
   if(params.transfer_mode == -1) {
     fprintf(stderr, "Mode (write or read) is required.\n");
     params.ecode = EOPT;

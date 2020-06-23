@@ -23,7 +23,6 @@ Options:
 ./ipk-client
 Hostname is required.
 Port is required.
-Hostname is required.
 Mode (write or read) is required.
 File is required.
 
