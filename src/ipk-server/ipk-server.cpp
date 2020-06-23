@@ -26,12 +26,12 @@ void catchsignal(int sig) {
 }
 
 // free all allocated memory
-void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]) {
+void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[], int sock) {
   for(int index = 0; index < params->nodes_count; index++) {
-    close(threads_args[index]->sock);
     free(threads_args[index]->addrinfo);
     delete threads_args[index];
   }
+  close(sock);
   freeaddrinfo(addrinfo);
 }
 
@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
   }
   if(params.ecode != EOK) {
     cout<<"\n"<<HELP_MSG<<endl;
-    clean(&params, results, threads_args);
+    clean(&params, results, threads_args, sock);
     return params.ecode;
   }
 
@@ -246,28 +246,28 @@ int main(int argc, char *argv[]) {
   // get addrinfo
   if(getaddrinfo(NULL, params.port.c_str(), &hints, &results) != 0) {
     printError(EGETADDRINFO, "Host is not valid.\n");
-    clean(&params, results, threads_args);
+    clean(&params, results, threads_args, sock);
     return EGETADDRINFO;
   }
 
   // create socket
   if((sock = socket(results->ai_family, results->ai_socktype, results->ai_protocol)) == -1) {
     printError(ESOCKET, "Socket can not be created.\n");
-    clean(&params, results, threads_args);
+    clean(&params, results, threads_args, sock);
     return ESOCKET;
   }
 
   // bind socket
   if(bind(sock, results->ai_addr, results->ai_addrlen) != 0) {
     printError(EBIND, "Bind failed.");
-    clean(&params, results, threads_args);
+    clean(&params, results, threads_args, sock);
     return EBIND;
   }
 
   // listen
   if(listen(sock, MAX_CLIENTS) < 0) {
     printError(ELISTEN, "Listen failed.");
-    clean(&params, results, threads_args);
+    clean(&params, results, threads_args, sock);
     return ELISTEN;
   }
 
@@ -316,7 +316,7 @@ int main(int argc, char *argv[]) {
     pthread_join(threads[index], NULL);
 
   // clean
-  clean(&params, results, threads_args);
+  clean(&params, results, threads_args, sock);
 
   return ecode;
 }
