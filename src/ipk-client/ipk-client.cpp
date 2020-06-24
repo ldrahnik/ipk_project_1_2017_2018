@@ -43,32 +43,13 @@ int main(int argc, char *argv[]) {
   host_info.ai_family = AF_UNSPEC;
   host_info.ai_socktype = SOCK_STREAM;
   ssize_t recv_len;
+  fstream file;
 
   // parsing parameters
   TParams params = getParams(argc, argv);
   if(params.ecode != EOK) {
     cout<<"\n"<<HELP_MSG<<endl;
     return params.ecode;
-  }
-
-  // try get file
-  fstream file;
-  if(params.transfer_mode == WRITE) {
-    file.open(params.filepath.c_str(), fstream::in | fstream::binary);
-    if(!file.is_open()) {
-      printError(EFILE, "Error opening file to write on server: " + params.filepath);
-      clean(host_ips, sock, buffer, file);
-      return EFILE;
-    }
-  }
-
-  if(params.transfer_mode == READ) {
-    file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
-    if(!file.is_open()) {
-      printError(EFILE, "Error opening file to write on client: " + params.filepath);
-      clean(host_ips, sock, buffer, file);
-      return EFILE;
-    }
   }
 
   // try get addrinfo
@@ -163,6 +144,13 @@ int main(int argc, char *argv[]) {
 
     cout<<"Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
 
+    file.open(params.filepath.c_str(), fstream::in | fstream::binary);
+    if(!file.is_open()) {
+      printError(EFILE, "Error opening file to write on server: " + params.filepath);
+      clean(host_ips, sock, buffer, file);
+      return EFILE;
+    }
+
     // sending file
     long total_sent = 0;
     while(file.read(buffer, BUFFER_SIZE)) {
@@ -220,7 +208,22 @@ int main(int argc, char *argv[]) {
         return STATUS_CODE_EUNKNOWN;
     }
 
+    file.open(basename(params.filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
+    if(!file.is_open()) {
+      printError(EFILE, "Error opening file to write on client: " + params.filepath);
+      clean(host_ips, sock, buffer, file);
+      return EFILE;
+    }
+
     cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
+
+    // try get file
+    file.open(basename(params.filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
+    if(!file.is_open()) {
+      printError(EFILE, "Error opening file to write on client: " + params.filepath);
+      clean(host_ips, sock, buffer, file);
+      return EFILE;
+    }
 
     // receiving file
     long total_received = 0;

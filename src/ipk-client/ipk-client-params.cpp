@@ -68,6 +68,21 @@ TParams getParams(int argc, char *argv[]) {
   if(params.filepath.empty()) {
     fprintf(stderr, "File is required.\n");
     params.ecode = EOPT;
+  } else {
+    fstream file;
+    if(params.transfer_mode == READ) {
+      file.open(basename(params.filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
+      if(!file.is_open()) {
+        fprintf(stderr, "Error during opening file (write access): %s", params.filepath.c_str());
+        params.ecode = EFILE;
+      }
+    } else if(params.transfer_mode == WRITE) {
+      file.open(params.filepath.c_str(), fstream::in | fstream::binary);
+      if(!file.is_open()) {
+        fprintf(stderr, "Error during opening file (read access): %s", params.filepath.c_str());
+        params.ecode = EFILE;
+      }
+    }
   }
 
   return params;

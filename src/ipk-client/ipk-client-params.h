@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <fstream>
 
 typedef struct params {
   std::string port;                   // option p

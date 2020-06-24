@@ -89,6 +89,10 @@ void* handleServer(void *threadarg) {
   }
   file_path = (char*) (buffer + sizeof(Protocol_header));
 
+  // root of server (current working directory)
+  char cwd[PATH_MAX];
+  getcwd(cwd, PATH_MAX);
+
   // write
   if(header->transfer_mode == WRITE) {
 
@@ -96,12 +100,12 @@ void* handleServer(void *threadarg) {
 
     // open file
     ofstream output_file;
-    output_file.open(basename(file_path), fstream::out | fstream::binary | fstream::trunc);
+    output_file.open(std::string(cwd) + std::string("/") + basename(file_path), fstream::out | fstream::binary | fstream::trunc);
     if(!output_file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, 1, 0);
       free(buffer);
-      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(file_path));
+      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(basename(file_path)));
       pthread_exit(NULL);
     }
 
@@ -128,7 +132,7 @@ void* handleServer(void *threadarg) {
           cout<<"[CLIENT #"<<node_index<<"] Transmition ended with error about file content size. Total number of received bytes: "<<total_received<<" B"<<endl;
           ecode = STATUS_CODE_EFILE_CONTENT;
           send(sock, &ecode, 1, 0);
-          serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Server can not open: " + std::string(file_path));
+          serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Server can not open: " + std::string(basename(file_path)));
           pthread_exit(NULL);
         } else {
           cout<<"[CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B"<<endl;
@@ -146,11 +150,11 @@ void* handleServer(void *threadarg) {
 
     // open file
     ifstream input_file;
-    input_file.open(file_path, fstream::in | fstream::binary);
+    input_file.open(std::string(cwd) + std::string("/") + basename(file_path), fstream::in | fstream::binary);
     if(!input_file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, 1, 0);
-      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(file_path));
+      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(basename(file_path)));
       pthread_exit(NULL);
     }
 
