@@ -16,6 +16,15 @@ const char *HELP_MSG = {
   "-r|-w <file> - read/write file"
 };
 
+// free all allocated memory
+void clean(addrinfo* addrinfo, int sock, char* buffer, fstream& file) {
+  if(buffer != NULL)
+    free(buffer);
+  close(sock);
+  freeaddrinfo(addrinfo);
+  file.close();
+}
+
 /**
  * Entry point of application.
  *
@@ -26,7 +35,8 @@ const char *HELP_MSG = {
  */
 int main(int argc, char *argv[]) {
   int ecode = EOK;
-  int sock;
+  int sock = -1;
+  char* buffer = NULL;
   struct addrinfo host_info;
   struct addrinfo *host_ips, *rp;
   memset(&host_info, 0, sizeof host_info);
@@ -47,13 +57,16 @@ int main(int argc, char *argv[]) {
     file.open(params.filepath.c_str(), fstream::in | fstream::binary);
     if(!file.is_open()) {
       printError(EFILE, "Error opening file to write on server: " + params.filepath);
+      clean(host_ips, sock, buffer, file);
       return EFILE;
     }
   }
+
   if(params.transfer_mode == READ && !params.filepath.empty()) {
     file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open()) {
       printError(EFILE, "Error opening file to write on client: " + params.filepath);
+      clean(host_ips, sock, buffer, file);
       return EFILE;
     }
   }
@@ -61,6 +74,7 @@ int main(int argc, char *argv[]) {
   // try get addrinfo
   if((getaddrinfo(params.host.c_str(), params.port.c_str(), &host_info, &host_ips)) != 0) {
     printError(EOPT, "Hostname address is not valid.");
+    clean(host_ips, sock, buffer, file);
     return EOPT;
   }
 
@@ -78,11 +92,10 @@ int main(int argc, char *argv[]) {
   int file_path_length = 0;
   file_path_length = params.filepath.length();
 
-  // buffer
-  char* buffer;
   buffer = (char*)malloc(sizeof(Protocol_header) + file_path_length + 1);
   if(buffer == NULL) {
     fprintf(stderr, "Allocation fails.\n");
+    clean(host_ips, sock, buffer, file);
     return EALLOC;
   }
 
@@ -113,38 +126,38 @@ int main(int argc, char *argv[]) {
     // send header
     if((send(sock, buffer, sizeof(Protocol_header) + file_path_length + 1, 0)) == -1) {
       printError(ESEND, "Header was not succesfully sent.");
-      free(buffer);
+      clean(host_ips, sock, buffer, file);
       return ESEND;
     }
 
     // waiting on header response
 	if((recv(sock, &response, 1, 0)) == -1) {
       printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
-      free(buffer);
+      clean(host_ips, sock, buffer, file);
       return STATUS_CODE_EHEADER;
     }
     switch(response) {
       case STATUS_CODE_EOPEN_FILE:
         printError(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EOPEN_FILE;
       case STATUS_CODE_ELOCK_FILE:
         printError(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_ELOCK_FILE;
       case STATUS_CODE_EHEADER:
         printError(STATUS_CODE_EHEADER, "Header error.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EHEADER;
       case STATUS_CODE_OK:
         break;
       case STATUS_CODE_EUNKNOWN:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EUNKNOWN;
       default:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EUNKNOWN;
     }
 
@@ -161,8 +174,6 @@ int main(int argc, char *argv[]) {
     send(sock, buffer, file.gcount(), 0);
     total_sent += file.gcount();
     cout<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
-
-    file.close();
   }
   // read
   else {
@@ -174,38 +185,38 @@ int main(int argc, char *argv[]) {
     // send header
     if((send(sock, buffer, sizeof(Protocol_header) + file_path_length, 0)) == -1) {
       printError(ESEND, "Header was not succesfully sent.");
-      free(buffer);
+      clean(host_ips, sock, buffer, file);
       return ESEND;
     }
 
     // waiting on header response
     if((recv(sock, &response, 1, 0)) != 1) {
       printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
-      free(buffer);
+      clean(host_ips, sock, buffer, file);
       return STATUS_CODE_EHEADER;
     }
     switch(response) {
       case STATUS_CODE_EOPEN_FILE:
         printError(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EOPEN_FILE;
       case STATUS_CODE_ELOCK_FILE:
         printError(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_ELOCK_FILE;
       case STATUS_CODE_EHEADER:
         printError(STATUS_CODE_EHEADER, "Header error.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EHEADER;
       case STATUS_CODE_OK:
         break;
       case STATUS_CODE_EUNKNOWN:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EUNKNOWN;
       default:
         printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EUNKNOWN;
     }
 
@@ -216,7 +227,7 @@ int main(int argc, char *argv[]) {
     do {
       if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
         printError(STATUS_CODE_EFILE_CONTENT, "Transmission content");
-        free(buffer);
+        clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EFILE_CONTENT;
       }
 
@@ -230,12 +241,10 @@ int main(int argc, char *argv[]) {
 
       cout<<file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<file.gcount()<<" B"<<endl;
     } while (true);
-
-    file.close();
   }
 
-  close(sock);
-  free(buffer);
+  // clean
+  clean(host_ips, sock, buffer, file);
 
   return ecode;
 }

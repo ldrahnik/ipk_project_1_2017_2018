@@ -49,5 +49,6 @@ using namespace std;
 #define MAX_CLIENTS 128
 
 int main(int argc, char *argv[]);
+void clean(addrinfo* addrinfo, int sock, char* buffer, fstream& file);
 
 #endif
