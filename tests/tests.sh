@@ -62,3 +62,17 @@ fi
 
 # 2.1 úklid
 rm -f $TEST_FILE_NAME
+
+# 3 příprava
+cp $TEST_FILE ./
+
+# 3 (download file - threads - access from multiple client at the same time)
+$SERVER_ROOT/ipk-server -r 3 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1 & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1 & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1
+if [ -f $TEST_FILE_NAME ]; then
+    echo "*******TEST 3 PASSED";
+else
+    echo "TEST 3 FAILED";
+fi
+
+# 3 úklid
+rm -f $TEST_FILE_NAME

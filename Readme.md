@@ -44,6 +44,8 @@ Přidaný volitelný parametr udávající konečný počet requestů, které se
 
 Podpora IPv6.
 
+Server využívá vlákna a podporuje tak přístup více klientů v jednu chvíli.
+
 ## Testování programu:
 
 ```
@@ -53,4 +55,5 @@ bash ./tests/tests.sh
 *******TEST 1.1 PASSED
 *******TEST 2 PASSED
 *******TEST 2.1 PASSED
+*******TEST 3 PASSED
 ```
