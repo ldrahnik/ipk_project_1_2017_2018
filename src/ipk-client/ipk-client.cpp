@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
   // try get file
   fstream file;
-  if(params.transfer_mode == WRITE && !params.filepath.empty()) {
+  if(params.transfer_mode == WRITE) {
     file.open(params.filepath.c_str(), fstream::in | fstream::binary);
     if(!file.is_open()) {
       printError(EFILE, "Error opening file to write on server: " + params.filepath);
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if(params.transfer_mode == READ && !params.filepath.empty()) {
+  if(params.transfer_mode == READ) {
     file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open()) {
       printError(EFILE, "Error opening file to write on client: " + params.filepath);
