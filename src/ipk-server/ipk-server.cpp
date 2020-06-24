@@ -105,13 +105,6 @@ void* handleServer(void *threadarg) {
       pthread_exit(NULL);
     }
 
-    // lock file
-    /*if(flock(output_file.filedesc(), LOCK_EX | LOCK_NB) != 0) {
-      ecode = ELOCK_FILE;
-      send(sock, &ecode, 1, 0);
-      serverError(params, node_index, sock, ELOCK_FILE, "Server can not lock: " + basename(filepath));
-    }*/
-
     // opened, locked => OK
     send(sock, &ecode, 1, 0);
 
@@ -146,9 +139,6 @@ void* handleServer(void *threadarg) {
 
     // close file
     output_file.close();
-
-    // unlock file
-    //flock(output_file.filedesc(), LOCK_UN);
   }
   // read
   else if (header->transfer_mode == READ) {
@@ -163,14 +153,6 @@ void* handleServer(void *threadarg) {
       serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(file_path));
       pthread_exit(NULL);
     }
-
-    // lock file
-    /*if(flock(input_file.filedesc(), LOCK_SH | LOCK_NB) != 0) {
-      ecode = ELOCK_FILE;
-      send(sock, &ecode, 1, 0);
-      serverError(params, node_index, sock, ELOCK_FILE, "Server can not lock: " + std::string(filepath));
-      pthread_exit(NULL);
-    }*/
 
     // opened, locked => OK
     send(sock, &ecode, 1, 0);
@@ -194,9 +176,6 @@ void* handleServer(void *threadarg) {
 
     // close file
     input_file.close();
-
-    // unlock file
-    //flock(input_file.filedesc(), LOCK_UN);
 
   // else
   } else {
