@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   buffer[sizeof(Protocol_header) + file_path_length] = '\0';
 
   // header response
-  char response = STATUS_CODE_EUNKNOWN;
+  char response;
 
   // root of client (current working directory)
   char cwd[PATH_MAX];
@@ -123,35 +123,17 @@ int main(int argc, char *argv[]) {
       return ESEND;
     }
 
-    // waiting on header response
+    // receive header response
 	if((recv(sock, &response, 1, 0)) == -1) {
-      printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
+      printError(ERECV, "Header response was not succesfully received.");
       clean(host_ips, sock, buffer, file);
-      return STATUS_CODE_EHEADER;
+      return ERECV;
     }
-    switch(response) {
-      case STATUS_CODE_EOPEN_FILE:
-        printError(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EOPEN_FILE;
-      case STATUS_CODE_ELOCK_FILE:
-        printError(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_ELOCK_FILE;
-      case STATUS_CODE_EHEADER:
-        printError(STATUS_CODE_EHEADER, "Header error.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EHEADER;
-      case STATUS_CODE_OK:
-        break;
-      case STATUS_CODE_EUNKNOWN:
-        printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EUNKNOWN;
-      default:
-        printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EUNKNOWN;
+
+    if(response) {
+      printError(response, getStatusCodeMessage(response));
+      clean(host_ips, sock, buffer, file);
+      return response;
     }
 
     cout<<"[CLIENT] Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
@@ -176,41 +158,23 @@ int main(int argc, char *argv[]) {
     header->file_size = htons(0);
 
     // send header
-    if((send(sock, buffer, sizeof(Protocol_header) + file_path_length, 0)) == -1) {
+    if((send(sock, buffer, sizeof(Protocol_header) + file_path_length + 1, 0)) == -1) {
       printError(ESEND, "Header was not succesfully sent.");
       clean(host_ips, sock, buffer, file);
       return ESEND;
     }
 
-    // waiting on header response
+    // receive header response
     if((recv(sock, &response, 1, 0)) != 1) {
-      printError(STATUS_CODE_EHEADER, "Header was not succesfully transfered.");
+      printError(ERECV, "Header response was not succesfully received.");
       clean(host_ips, sock, buffer, file);
-      return STATUS_CODE_EHEADER;
+      return ERECV;
     }
-    switch(response) {
-      case STATUS_CODE_EOPEN_FILE:
-        printError(STATUS_CODE_EOPEN_FILE, "File can not be opened.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EOPEN_FILE;
-      case STATUS_CODE_ELOCK_FILE:
-        printError(STATUS_CODE_ELOCK_FILE, "File can not be locked.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_ELOCK_FILE;
-      case STATUS_CODE_EHEADER:
-        printError(STATUS_CODE_EHEADER, "Header error.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EHEADER;
-      case STATUS_CODE_OK:
-        break;
-      case STATUS_CODE_EUNKNOWN:
-        printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EUNKNOWN;
-      default:
-        printError(STATUS_CODE_EUNKNOWN, "Unknown response.");
-        clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EUNKNOWN;
+
+    if(response) {
+      printError(response, getStatusCodeMessage(response));
+      clean(host_ips, sock, buffer, file);
+      return response;
     }
 
     cout<<"[CLIENT] Receiving file: '"<<params.filepath.c_str()<<"'"<<endl;
@@ -218,7 +182,7 @@ int main(int argc, char *argv[]) {
     // try get file
     file.open(std::string(cwd) + std::string("/") + params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open()) {
-      printError(EFILE, "Error opening file to write on client: " + std::string(params.filepath.c_str()));
+      printError(EFILE, "Error during opening file: " + std::string(params.filepath.c_str()));
       clean(host_ips, sock, buffer, file);
       return EFILE;
     }
@@ -229,9 +193,9 @@ int main(int argc, char *argv[]) {
     ssize_t recv_len;
     do {
       if((recv_len = recv(sock, file_buffer, BUFFER_SIZE, 0)) == -1) {
-        printError(STATUS_CODE_EFILE_CONTENT, "Transmission content");
+        printError(ERECV, "File content was not succesfully received.");
         clean(host_ips, sock, buffer, file);
-        return STATUS_CODE_EFILE_CONTENT;
+        return ERECV;
       }
 
       if(recv_len == 0) {

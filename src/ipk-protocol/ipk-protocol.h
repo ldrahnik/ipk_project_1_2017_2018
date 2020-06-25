@@ -7,6 +7,8 @@
 #ifndef _ipk_protocol_H_
 #define _ipk_protocol_H_
 
+#include <stdint.h>
+
 #define BUFFER_SIZE 1448
 
 #pragma pack(push, 1)
@@ -26,10 +28,13 @@ enum protocol_transfer_mode {
 enum protocol_status_code {
   STATUS_CODE_OK = 0,
   STATUS_CODE_EOPEN_FILE = 100,
-  STATUS_CODE_EHEADER = 101,
-  STATUS_CODE_ELOCK_FILE = 102,
-  STATUS_CODE_EFILE_CONTENT = 103,
+  STATUS_CODE_ERECV_HEADER = 101,
+  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102,
+  STATUS_CODE_ERECV_FILE = 103,
+  STATUS_CODE_EFILE_CONTENT = 104,
   STATUS_CODE_EUNKNOWN = 99
 };
+
+const char* getStatusCodeMessage(int code);
 
 #endif

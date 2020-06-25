@@ -22,6 +22,7 @@ enum client_ecode {
   EFILE = 6,
   ESEND = 7,
   EALLOC = 8,
+  ERECV = 9,
 };
 
 void printError(int code, std::string msg);

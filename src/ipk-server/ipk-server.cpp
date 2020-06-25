@@ -64,7 +64,7 @@ void* handleServer(void *threadarg) {
   buffer = (char*)malloc(sizeof(char) * IP_MAXPACKET);
   if(buffer == NULL) {
     fprintf(stderr, "Allocation fails.\n");
-    serverError(params, node_index, sock, EALLOC, "Alloc error.");
+    serverError(params, node_index, sock, EALLOC, "Allocation fails.");
     pthread_exit(NULL);
   }
 
@@ -72,10 +72,10 @@ void* handleServer(void *threadarg) {
 
   // incoming header
   if(recv(sock, buffer, IP_MAXPACKET, 0) < 0) {
-    ecode = STATUS_CODE_EHEADER;
+    ecode = STATUS_CODE_ERECV_HEADER;
     send(sock, &ecode, 1, 0);
     free(buffer);
-    serverError(params, node_index, sock, STATUS_CODE_EHEADER, "Header error.");
+    serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
   }
   Protocol_header* header = (Protocol_header*) buffer;
@@ -108,11 +108,11 @@ void* handleServer(void *threadarg) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, 1, 0);
       free(buffer);
-      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(basename(file_path)));
+      serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
       pthread_exit(NULL);
     }
 
-    // opened, locked => OK
+    // opened => OK
     send(sock, &ecode, 1, 0);
 
     long total_received = 0;
@@ -120,9 +120,10 @@ void* handleServer(void *threadarg) {
     ssize_t recv_len;
     do {
       if((recv_len = recv(sock, file_buffer, BUFFER_SIZE, 0)) == -1) {
-        ecode = STATUS_CODE_EFILE_CONTENT;
+        ecode = STATUS_CODE_ERECV_FILE;
         send(sock, &ecode, 1, 0);
-        serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Error during data of file transmission");
+        free(buffer);
+        serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
         pthread_exit(NULL);
       }
 
@@ -131,7 +132,7 @@ void* handleServer(void *threadarg) {
           cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended unsuccessfully. Total number of received bytes: "<<total_received<<" B / "<<file_size<<" B"<<endl;
           ecode = STATUS_CODE_EFILE_CONTENT;
           send(sock, &ecode, 1, 0);
-          serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Transmission content: " + std::string(basename(file_path)));
+          serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
           pthread_exit(NULL);
         } else {
           cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B / "<<file_size<<" B"<<endl;
@@ -158,11 +159,11 @@ void* handleServer(void *threadarg) {
     if(!input_file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, 1, 0);
-      serverError(params, node_index, sock, STATUS_CODE_EOPEN_FILE, "Server can not open: " + std::string(basename(file_path)));
+      serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
       pthread_exit(NULL);
     }
 
-    // opened, locked => OK
+    // opened => OK
     send(sock, &ecode, 1, 0);
 
     long total_sent = 0;
@@ -188,9 +189,9 @@ void* handleServer(void *threadarg) {
 
   // else
   } else {
-    ecode = STATUS_CODE_EHEADER;
+    ecode = STATUS_CODE_ERECV_HEADER_TRANSFER_MODE;
     send(sock, &ecode, 1, 0);
-    serverError(params, node_index, sock, ecode, "Header error. Transfer mode could not be recognized.");
+    serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
     free(buffer);
     pthread_exit(NULL);
   }
