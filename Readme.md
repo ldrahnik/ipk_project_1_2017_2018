@@ -57,3 +57,41 @@ bash ./tests/tests.sh
 *******TEST 2.1 PASSED
 *******TEST 3 PASSED
 ```
+
+## Odevzdané soubory:
+
+```
+xdrahn00
+├── doc
+│   └── dokumentace.pdf
+├── Makefile
+├── Readme.md
+├── src
+│   ├── ipk-client
+│   │   ├── ipk-client.cpp
+│   │   ├── ipk-client-error.cpp
+│   │   ├── ipk-client-error.h
+│   │   ├── ipk-client.h
+│   │   ├── ipk-client-params.cpp
+│   │   └── ipk-client-params.h
+│   ├── ipk-protocol
+│   │   ├── ipk-protocol.cpp
+│   │   └── ipk-protocol.h
+│   └── ipk-server
+│       ├── ipk-server.cpp
+│       ├── ipk-server-error.cpp
+│       ├── ipk-server-error.h
+│       ├── ipk-server.h
+│       ├── ipk-server-params.cpp
+│       └── ipk-server-params.h
+└── tests
+    ├── client_root
+    │   └── .gitkeep
+    ├── server_root
+    │   └── .gitkeep
+    ├── test (copy).txt
+    ├── tests.sh
+    └── test.txt
+
+8 directories, 22 files
+```

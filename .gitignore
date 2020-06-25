@@ -4,3 +4,5 @@ tests/server_root/ipk-server
 tests/client_root/ipk-client
 *.o
 *~
+xdrahn00/*
+*.zip

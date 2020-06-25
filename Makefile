@@ -59,10 +59,13 @@ rebuild: clean all
 ############################################ ARCHIVE
 
 ARCHIVE_NAME = xdrahn00
-ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(PROJECT_DOC) $(PROJECT_README)
+ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(PROJECT_DOC) $(PROJECT_README) ./tests/*
 
 zip:
-	zip -r $(ARCHIVE_NAME).zip $(ARCHIVE_FILES)
+	zip -r $(ARCHIVE_NAME).zip $(ARCHIVE_FILES) -x "tests/server_root/ipk-server" -x "tests/client_root/ipk-client" # exclude binaries for testing
+
+unzip:
+	unzip $(ARCHIVE_NAME).zip -d $(ARCHIVE_NAME)
 
 rmzip:
 	rm -f $(ARCHIVE_NAME).zip
