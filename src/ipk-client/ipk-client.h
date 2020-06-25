@@ -43,6 +43,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <linux/limits.h>
+
 using namespace std;
 
 #define BUFFER_SIZE 1448

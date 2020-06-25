@@ -6,73 +6,63 @@
 # Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
 # File: tests.sh
 
-TEST_DIRECTORY=`dirname $0`
-CLIENT_ROOT=$TEST_DIRECTORY/client_root
-SERVER_ROOT=$TEST_DIRECTORY/server_root
-PORT=50126
+CLIENT_ROOT=./tests/client_root
+SERVER_ROOT=./tests/server_root
+PORT=50126  
 TEST_FILE_NAME=test.txt
-TEST_FILE=$TEST_DIRECTORY/$TEST_FILE_NAME
+TEST_FILE=./tests/$TEST_FILE_NAME
+TEST_FILE_NAME_COPY=test.txt
+TEST_FILE_COPY=./tests/$TEST_FILE_NAME
 
-# 1 (upload file IPv4)
-$SERVER_ROOT/ipk-server -r 1 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -w $TEST_FILE > /dev/null 2>&1
-if [ -f $TEST_FILE_NAME ]; then
+# 1 upload file IPv4
+(cd $SERVER_ROOT && ./ipk-server -r 1 -p $PORT > /dev/null 2>&1 &) && (cd $CLIENT_ROOT && ./ipk-client -h localhost -p $PORT -w ../$TEST_FILE_NAME > /dev/null 2>&1);
+if [ -f $SERVER_ROOT/$TEST_FILE_NAME ] && diff $SERVER_ROOT/$TEST_FILE_NAME $TEST_FILE > /dev/null; then
     echo "*******TEST 1 PASSED";
 else
     echo "TEST 1 FAILED";
 fi
 
-# 1 úklid
-rm -f $TEST_FILE_NAME
-
-# 1.1 (upload file IPv6)
-$SERVER_ROOT/ipk-server -r 1 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h ::1 -p $PORT -w $TEST_FILE > /dev/null 2>&1
-if [ -f $TEST_FILE_NAME ]; then
+# 1.1 upload file IPv6
+(cd $SERVER_ROOT && ./ipk-server -r 1 -p $PORT > /dev/null 2>&1 &) && (cd $CLIENT_ROOT && ./ipk-client -h ::1 -p $PORT -w ../$TEST_FILE_NAME_COPY > /dev/null 2>&1);
+if [ -f $SERVER_ROOT/$TEST_FILE_NAME_COPY ] && diff $SERVER_ROOT/$TEST_FILE_NAME_COPY $TEST_FILE_COPY > /dev/null; then
     echo "*******TEST 1.1 PASSED";
 else
     echo "TEST 1.1 FAILED";
 fi
 
-# 1.1 úklid
-rm -f $TEST_FILE_NAME
-
-# 2 příprava
-cp $TEST_FILE ./
-
-# 2 (download file)
-$SERVER_ROOT/ipk-server -r 1 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1
-if [ -f $TEST_FILE_NAME ]; then
+# 2 download file IPv4
+(cd $SERVER_ROOT && ./ipk-server -r 1 -p $PORT > /dev/null 2>&1 &) && (cd $CLIENT_ROOT && ./ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1);
+if [ -f $CLIENT_ROOT/$TEST_FILE_NAME ] && diff $CLIENT_ROOT/$TEST_FILE_NAME $TEST_FILE > /dev/null; then
     echo "*******TEST 2 PASSED";
 else
     echo "TEST 2 FAILED";
 fi
 
-# 2 úklid
-rm -f $TEST_FILE_NAME
+# 2 clean
+rm -f $CLIENT_ROOT/$TEST_FILE_NAME;
 
-# 2.1 příprava
-cp $TEST_FILE ./
-
-# 2.1 (download file IPv6)
-$SERVER_ROOT/ipk-server -r 1 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h ::1 -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1
-if [ -f $TEST_FILE_NAME ]; then
+# 2.1 download file IPv6
+(cd $SERVER_ROOT && ./ipk-server -r 1 -p $PORT > /dev/null 2>&1 &) && (cd $CLIENT_ROOT && ./ipk-client -h ::1 -p $PORT -r $TEST_FILE_NAME_COPY > /dev/null 2>&1);
+if [ -f $CLIENT_ROOT/$TEST_FILE_NAME_COPY ] && diff $CLIENT_ROOT/$TEST_FILE_NAME_COPY $TEST_FILE_COPY > /dev/null; then
     echo "*******TEST 2.1 PASSED";
 else
     echo "TEST 2.1 FAILED";
 fi
 
-# 2.1 úklid
-rm -f $TEST_FILE_NAME
+# 2.1 clean
+rm -f $CLIENT_ROOT/$TEST_FILE_NAME_COPY;
 
-# 3 příprava
-cp $TEST_FILE ./
-
-# 3 (download file - threads - access from multiple client at the same time)
-$SERVER_ROOT/ipk-server -r 3 -p $PORT > /dev/null & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1 & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1 & $CLIENT_ROOT/ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME > /dev/null 2>&1
-if [ -f $TEST_FILE_NAME ]; then
+# 3 download file (threads - multiple clients at the same time)
+(cd $SERVER_ROOT && ./ipk-server -r 2 -p $PORT > /dev/null 2>&1 &) && (cd $CLIENT_ROOT && ./ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME_COPY > /dev/null 2>&1) && (cd $CLIENT_ROOT && ./ipk-client -h localhost -p $PORT -r $TEST_FILE_NAME_COPY > /dev/null 2>&1);
+if [ -f $CLIENT_ROOT/$TEST_FILE_NAME ] && [ -f $CLIENT_ROOT/$TEST_FILE_NAME_COPY ] && diff $CLIENT_ROOT/$TEST_FILE_NAME $TEST_FILE > /dev/null && diff $CLIENT_ROOT/$TEST_FILE_NAME_COPY $TEST_FILE_COPY > /dev/null; then
     echo "*******TEST 3 PASSED";
 else
     echo "TEST 3 FAILED";
 fi
 
-# 3 úklid
-rm -f $TEST_FILE_NAME
+# 3 clean
+rm -f $CLIENT_ROOT/$TEST_FILE_NAME
+
+# 1 clean
+rm -f $SERVER_ROOT/$TEST_FILE_NAME
+rm -f $SERVER_ROOT/$TEST_FILE_NAME_COPY;

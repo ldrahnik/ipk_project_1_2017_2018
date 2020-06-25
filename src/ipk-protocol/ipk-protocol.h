@@ -11,7 +11,7 @@
 
 #pragma pack(push, 1)
 typedef struct protocol_header {
-  int transfer_mode;
+  uint8_t transfer_mode :1;
   int file_path_length;
   long file_size;
 } Protocol_header;

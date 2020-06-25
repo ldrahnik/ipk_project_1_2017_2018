@@ -37,13 +37,13 @@ void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[], i
 
 void serverError(TParams* params, int node_index, int client_sock, int code, string msg) {
   printError(code, msg);
-  cout<<"[CLIENT #"<<node_index<<"] Is leaving with error\n"<<endl;
+  cout<<"[SERVER CLIENT #"<<node_index<<"] Is leaving with error\n"<<endl;
   close(client_sock);
   params->nodes_count--;
 }
 
 void serverEnd(TParams* params, int node_index, int client_sock) {
-  cout<<"[CLIENT #"<<node_index<<"] Is leaving without error\n"<<endl;
+  cout<<"[SERVER CLIENT #"<<node_index<<"] Is leaving without error\n"<<endl;
   close(client_sock);
   params->nodes_count--;
 }
@@ -68,7 +68,7 @@ void* handleServer(void *threadarg) {
     pthread_exit(NULL);
   }
 
-  cout<<"[CLIENT #"<<node_index<<"] Is starting\n"<<endl;
+  cout<<"[SERVER CLIENT #"<<node_index<<"] Is starting\n"<<endl;
 
   // incoming header
   if(recv(sock, buffer, IP_MAXPACKET, 0) < 0) {
@@ -96,7 +96,10 @@ void* handleServer(void *threadarg) {
   // write
   if(header->transfer_mode == WRITE) {
 
-    cout<<"[CLIENT #"<<node_index<<"] Wants write a file. Sent filename: '"<<basename(file_path)<<"', Size: "<<header->file_size<<" B"<<endl;
+    long file_size;
+    file_size = ntohs(header->file_size);
+
+    cout<<"[SERVER CLIENT #"<<node_index<<"] Wants write a file. Sent filename: '"<<basename(file_path)<<"', Size: "<<file_size<<" B"<<endl;
 
     // open file
     ofstream output_file;
@@ -113,32 +116,33 @@ void* handleServer(void *threadarg) {
     send(sock, &ecode, 1, 0);
 
     long total_received = 0;
+    char file_buffer[BUFFER_SIZE];
     ssize_t recv_len;
     do {
-      if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
+      if((recv_len = recv(sock, file_buffer, BUFFER_SIZE, 0)) == -1) {
         ecode = STATUS_CODE_EFILE_CONTENT;
         send(sock, &ecode, 1, 0);
         serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Error during data of file transmission");
         pthread_exit(NULL);
       }
-      //cout<<"[CLIENT #"<<node_index<<"]"<<output_file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<filepath_len<<" B"<<endl;
-
-      total_received += recv_len;
-
-      output_file.write(buffer, recv_len);
 
       if(recv_len == 0) {
-        if(header->file_size != total_received) {
-          cout<<"[CLIENT #"<<node_index<<"] Transmition ended with error about file content size. Total number of received bytes: "<<total_received<<" B"<<endl;
+        if(file_size != total_received) {
+          cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended unsuccessfully. Total number of received bytes: "<<total_received<<" B / "<<file_size<<" B"<<endl;
           ecode = STATUS_CODE_EFILE_CONTENT;
           send(sock, &ecode, 1, 0);
-          serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Server can not open: " + std::string(basename(file_path)));
+          serverError(params, node_index, sock, STATUS_CODE_EFILE_CONTENT, "Transmission content: " + std::string(basename(file_path)));
           pthread_exit(NULL);
         } else {
-          cout<<"[CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B"<<endl;
+          cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B / "<<file_size<<" B"<<endl;
           send(sock, &ecode, 1, 0);
         }
       }
+
+      total_received += recv_len;
+
+      cout<<"[SERVER CLIENT #"<<node_index<<"] Receiving data of length: "<<recv_len<<" with content: "<<file_buffer<<endl;
+      output_file.write(file_buffer, recv_len);
     } while (recv_len > 0);
 
     // close file
@@ -146,7 +150,7 @@ void* handleServer(void *threadarg) {
   }
   // read
   else if (header->transfer_mode == READ) {
-    cout<<"[CLIENT #"<<node_index<<"] wants read a file. Received filename: '"<<basename(file_path)<<"'"<<endl;
+    cout<<"[SERVER CLIENT #"<<node_index<<"] wants read a file. Received filename: '"<<basename(file_path)<<"'"<<endl;
 
     // open file
     ifstream input_file;
@@ -163,20 +167,21 @@ void* handleServer(void *threadarg) {
 
     long total_sent = 0;
     long file_size = 0;
+    char file_buffer[BUFFER_SIZE];
 
     input_file.seekg(0, input_file.end);
     file_size = input_file.tellg();
     input_file.seekg(0, input_file.beg);
 
-    while(input_file.read(buffer, BUFFER_SIZE)) {
+    while(input_file.read(file_buffer, BUFFER_SIZE)) {
       send(sock, buffer, BUFFER_SIZE, 0);
       total_sent += input_file.gcount();
-      cout<<"[CLIENT #"<<node_index<<"] "<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+      cout<<"[SERVER CLIENT #"<<node_index<<"] "<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
 
-    send(sock, buffer, input_file.gcount(), 0);
+    send(sock, file_buffer, input_file.gcount(), 0);
     total_sent += input_file.gcount();
-    cout<<"[CLIENT #"<<node_index<<"] Transmition ended. Total number of sent bytes: "<<total_sent<< " B / "<<file_size<<" B"<<endl;
+    cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended. Total number of sent bytes: "<<total_sent<< " B / "<<file_size<<" B"<<endl;
 
     // close file
     input_file.close();

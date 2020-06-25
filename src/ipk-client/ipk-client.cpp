@@ -42,7 +42,6 @@ int main(int argc, char *argv[]) {
   memset(&host_info, 0, sizeof host_info);
   host_info.ai_family = AF_UNSPEC;
   host_info.ai_socktype = SOCK_STREAM;
-  ssize_t recv_len;
   fstream file;
 
   // parsing parameters
@@ -82,7 +81,7 @@ int main(int argc, char *argv[]) {
 
   // header
   Protocol_header* header = (Protocol_header*)buffer;
-  header->file_path_length = file_path_length;
+  header->file_path_length = htons(file_path_length);
 
   // file_path follows-up header
   params.filepath.copy(buffer + sizeof(Protocol_header), file_path_length);
@@ -91,18 +90,31 @@ int main(int argc, char *argv[]) {
   // header response
   char response = STATUS_CODE_EUNKNOWN;
 
+  // root of client (current working directory)
+  char cwd[PATH_MAX];
+  getcwd(cwd, PATH_MAX);
+
   // write
   if(params.transfer_mode == WRITE) {
 
     long file_size = 0;
 
+    // open file
+    file.open(params.filepath.c_str(), fstream::in | fstream::binary);
+    if(!file.is_open()) {
+      printError(EFILE, "Error opening file to write on server: " + params.filepath);
+      clean(host_ips, sock, buffer, file);
+      return EFILE;
+    }
+
+    // file size (is required have opened file)
     file.seekg(0, file.end);
     file_size = file.tellg();
     file.seekg(0, file.beg);
 
     // header
     header->transfer_mode = WRITE;
-    header->file_size = file_size;
+    header->file_size = htons(file_size);
 
     // send header
     if((send(sock, buffer, sizeof(Protocol_header) + file_path_length + 1, 0)) == -1) {
@@ -142,33 +154,26 @@ int main(int argc, char *argv[]) {
         return STATUS_CODE_EUNKNOWN;
     }
 
-    cout<<"Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
-
-    file.open(params.filepath.c_str(), fstream::in | fstream::binary);
-    if(!file.is_open()) {
-      printError(EFILE, "Error opening file to write on server: " + params.filepath);
-      clean(host_ips, sock, buffer, file);
-      return EFILE;
-    }
+    cout<<"[CLIENT] Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
 
     // sending file
     long total_sent = 0;
     while(file.read(buffer, BUFFER_SIZE)) {
       send(sock, buffer, BUFFER_SIZE, 0);
       total_sent += file.gcount();
-      cout<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+      cout<<"[CLIENT] "<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
 
     send(sock, buffer, file.gcount(), 0);
     total_sent += file.gcount();
-    cout<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+    cout<<"[CLIENT] "<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
   }
   // read
   else {
 
     // header
     header->transfer_mode = READ;
-    header->file_size = 0;
+    header->file_size = htons(0);
 
     // send header
     if((send(sock, buffer, sizeof(Protocol_header) + file_path_length, 0)) == -1) {
@@ -208,42 +213,37 @@ int main(int argc, char *argv[]) {
         return STATUS_CODE_EUNKNOWN;
     }
 
-    file.open(basename(params.filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
-    if(!file.is_open()) {
-      printError(EFILE, "Error opening file to write on client: " + params.filepath);
-      clean(host_ips, sock, buffer, file);
-      return EFILE;
-    }
-
-    cout<<"Receiving file: '"<<params.filepath<<"'"<<endl;
+    cout<<"[CLIENT] Receiving file: '"<<params.filepath.c_str()<<"'"<<endl;
 
     // try get file
-    file.open(basename(params.filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
+    file.open(std::string(cwd) + std::string("/") + params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open()) {
-      printError(EFILE, "Error opening file to write on client: " + params.filepath);
+      printError(EFILE, "Error opening file to write on client: " + std::string(params.filepath.c_str()));
       clean(host_ips, sock, buffer, file);
       return EFILE;
     }
 
     // receiving file
     long total_received = 0;
+    char file_buffer[BUFFER_SIZE];
+    ssize_t recv_len;
     do {
-      if((recv_len = recv(sock, buffer, BUFFER_SIZE, 0)) == -1) {
+      if((recv_len = recv(sock, file_buffer, BUFFER_SIZE, 0)) == -1) {
         printError(STATUS_CODE_EFILE_CONTENT, "Transmission content");
         clean(host_ips, sock, buffer, file);
         return STATUS_CODE_EFILE_CONTENT;
       }
 
-      file.write(buffer, recv_len);
-
       if(recv_len == 0) {
-         cout<<"Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
-         break;
+        cout<<"[CLIENT] Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
+        break;
       }
+
       total_received += recv_len;
 
-      cout<<file.gcount()<<" B received. Total number of received bytes: "<<total_received<<" B / "<<file.gcount()<<" B"<<endl;
-    } while (true);
+      cout<<"[CLIENT] Receiving data of length: "<<recv_len<<" with content: "<<file_buffer<<endl;
+      file.write(file_buffer, recv_len);
+    } while (recv_len > 0);
   }
 
   // clean

@@ -29,7 +29,7 @@ TParams getParams(int argc, char *argv[]) {
         break;
       case 'r':
         params.transfer_mode = READ;
-        params.filepath = optarg;
+        params.filepath = basename(optarg);
         break;
       case 'w':
         params.transfer_mode = WRITE;
@@ -71,17 +71,19 @@ TParams getParams(int argc, char *argv[]) {
   } else {
     fstream file;
     if(params.transfer_mode == READ) {
-      file.open(basename(params.filepath.c_str()), fstream::out | fstream::binary | fstream::trunc);
+      file.open(params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
       if(!file.is_open()) {
         fprintf(stderr, "Error during opening file (write access): %s", params.filepath.c_str());
         params.ecode = EFILE;
       }
+      file.close();
     } else if(params.transfer_mode == WRITE) {
       file.open(params.filepath.c_str(), fstream::in | fstream::binary);
       if(!file.is_open()) {
         fprintf(stderr, "Error during opening file (read access): %s", params.filepath.c_str());
         params.ecode = EFILE;
       }
+      file.close();
     }
   }
 
