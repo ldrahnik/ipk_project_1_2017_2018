@@ -141,12 +141,22 @@ int main(int argc, char *argv[]) {
     // sending file
     long total_sent = 0;
     while(file.read(buffer, BUFFER_SIZE)) {
-      send(sock, buffer, BUFFER_SIZE, 0);
+      if(send(sock, buffer, file.gcount(), 0) == -1) {
+        printError(ESEND, "File content was not succesfully sent.");
+        clean(host_ips, sock, buffer, file);
+        return ESEND;
+      }
+
       total_sent += file.gcount();
       cout<<"[CLIENT] "<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
     }
 
-    send(sock, buffer, file.gcount(), 0);
+    if(send(sock, buffer, file.gcount(), 0) == -1) {
+      printError(ESEND, "File content was not succesfully sent.");
+      clean(host_ips, sock, buffer, file);
+      return ESEND;
+    }
+
     total_sent += file.gcount();
     cout<<"[CLIENT] "<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
   }
