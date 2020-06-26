@@ -47,7 +47,6 @@ using namespace std;
 typedef struct pthread_args {
   struct params *params;
   int node_index;                     // start index is 0
-  struct addrinfo *addrinfo;
   int sock;
 } Tpthread_args;
 

@@ -28,7 +28,6 @@ void catchsignal(int sig) {
 // free all allocated memory
 void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[], int sock) {
   for(int index = 0; index < params->nodes_count; index++) {
-    free(threads_args[index]->addrinfo);
     delete threads_args[index];
   }
   close(sock);
@@ -285,7 +284,6 @@ int main(int argc, char *argv[]) {
     Tpthread_args* threadarg = new Tpthread_args();
     threadarg->params = &params;
     threadarg->node_index = params.nodes_count;
-    threadarg->addrinfo = results;
     threads_args[params.nodes_count] = threadarg;
     threadarg->sock = client_sock;
 
