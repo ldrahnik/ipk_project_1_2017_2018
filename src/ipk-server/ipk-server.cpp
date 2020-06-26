@@ -295,8 +295,6 @@ int main(int argc, char *argv[]) {
 
     // increment client pthreads
     params.nodes_count++;
-
-    break;
   }
 
   // wait for all child node's
