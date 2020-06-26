@@ -8,7 +8,7 @@ Klient-server pro jednoduchý přenos souborů
 ## Příklad spuštění:
 
 ```
-./tests/server_root/ipk-server -h
+./ipk-server -h
 Example of usage:
 
 ./ipk-server [-h] [-r <number>] -p <port> 
