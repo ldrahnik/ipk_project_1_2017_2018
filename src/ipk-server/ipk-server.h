@@ -11,6 +11,7 @@
 #include "ipk-server-params.h"
 #include "ipk-server-error.h"
 #include "../ipk-protocol/ipk-protocol.h"
+#include "../ipk-file-transfer/ipk-file-transfer.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -52,8 +53,10 @@ typedef struct pthread_args {
 
 void catchsignal(int sig);
 void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[]);
-void serverError(TParams* params, int node_index, int client_sock, int code, string msg);
-void* handleServer(void *threadarg);
+void serverError(TParams* params, int node_index, int code, string msg);
+void serverEnd(TParams* params, int node_index);
+void* handleClientThread(void *threadarg);
+void cleanClientThread(char* buffer, char* file_path, int sock);
 int main(int argc, char *argv[]);
 
 #endif

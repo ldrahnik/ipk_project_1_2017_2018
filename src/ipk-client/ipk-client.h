@@ -11,6 +11,7 @@
 #include "ipk-client-params.h"
 #include "ipk-client-error.h"
 #include "../ipk-protocol/ipk-protocol.h"
+#include "../ipk-file-transfer/ipk-file-transfer.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -40,6 +41,6 @@
 #include <linux/limits.h>
 
 int main(int argc, char *argv[]);
-void clean(addrinfo* addrinfo, int sock, char* buffer, fstream& file);
+void clean(addrinfo* addrinfo, int sock, char* buffer);
 
 #endif

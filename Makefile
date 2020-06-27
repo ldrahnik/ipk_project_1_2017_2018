@@ -6,6 +6,12 @@
 PROJECT_DOC				= doc/dokumentace.pdf
 PROJECT_README			= Readme.md
 
+########################################### FILE TRANSFER
+
+FILE_TRANSFER_SOURCES_CODE		= $(shell find src/ipk-file-transfer/ -name *.cpp)
+FILE_TRANSFER_SOURCES_HEADERS	= src/ipk-file-transfer/*.h
+FILE_TRANSFER_SOURCES			= $(FILE_TRANSFER_SOURCES_CODE) $(FILE_TRANSFER_SOURCES_HEADERS)
+
 ########################################### PROTOCOL
 
 PROTOCOL_SOURCES_CODE	= $(shell find src/ipk-protocol/ -name *.cpp)
@@ -20,7 +26,7 @@ CLIENT_NAME				= ipk-client
 CLIENT_NAME_TESTS		= ipk-client-tests
 CLIENT_SOURCES_CODE		= $(shell find src/ipk-client/ -name *.cpp)
 CLIENT_SOURCES_HEADERS	= src/ipk-client/*.h
-CLIENT_SOURCES			= $(CLIENT_SOURCES_CODE) $(CLIENT_SOURCES_HEADERS) $(PROTOCOL_SOURCES)
+CLIENT_SOURCES			= $(CLIENT_SOURCES_CODE) $(CLIENT_SOURCES_HEADERS) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES)
 CLIENT_OBJECTS			= $(CLIENT_SOURCES_CODE:%.cpp=%.o)
 
 ############################################ SERVER
@@ -31,7 +37,7 @@ SERVER_NAME				= ipk-server
 SERVER_NAME_TESTS		= ipk-server-tests
 SERVER_SOURCES_CODE		= $(shell find src/ipk-server/ -name *.cpp)
 SERVER_SOURCES_HEADERS	= src/ipk-server/*.h
-SERVER_SOURCES			= $(SERVER_SOURCES_CODE) $(SERVER_SOURCES_HEADERS) $(PROTOCOL_SOURCES)
+SERVER_SOURCES			= $(SERVER_SOURCES_CODE) $(SERVER_SOURCES_HEADERS) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES)
 SERVER_OBJECTS			= $(SERVER_SOURCES_CODE:%.cpp=%.o)
 
 ############################################
@@ -59,7 +65,7 @@ rebuild: clean all
 ############################################ ARCHIVE
 
 ARCHIVE_NAME = xdrahn00
-ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(PROJECT_DOC) $(PROJECT_README) ./tests/*
+ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES) $(PROJECT_DOC) $(PROJECT_README) ./tests/*
 
 zip:
 	zip -r $(ARCHIVE_NAME).zip $(ARCHIVE_FILES) -x "tests/server_root/ipk-server" -x "tests/client_root/ipk-client" # exclude binaries for testing

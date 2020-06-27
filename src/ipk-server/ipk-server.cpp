@@ -34,20 +34,26 @@ void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[], i
   freeaddrinfo(addrinfo);
 }
 
-void serverError(TParams* params, int node_index, int client_sock, int code, string msg) {
+void cleanClientThread(char* buffer, char* file_path, int sock) {
+  if(buffer != NULL)
+    free(buffer);
+  if(file_path != NULL)
+    free(file_path);
+  close(sock);
+}
+
+void serverError(TParams* params, int node_index, int code, string msg) {
   printError(code, msg);
   cout<<"[SERVER CLIENT #"<<node_index<<"] Is leaving with error\n"<<endl;
-  close(client_sock);
   params->nodes_count--;
 }
 
-void serverEnd(TParams* params, int node_index, int client_sock) {
+void serverEnd(TParams* params, int node_index) {
   cout<<"[SERVER CLIENT #"<<node_index<<"] Is leaving without error\n"<<endl;
-  close(client_sock);
   params->nodes_count--;
 }
 
-void* handleServer(void *threadarg) {
+void* handleClientThread(void *threadarg) {
   int ecode = EOK;
 
   // thread args
@@ -57,13 +63,14 @@ void* handleServer(void *threadarg) {
   int node_index = pthread_args->node_index;
 
   // buffer's
-  char* buffer;
-  char* file_path;
+  char* buffer = NULL;
+  char* file_path = NULL;
 
+  // alloc buffer's
   buffer = (char*)malloc(sizeof(char) * IP_MAXPACKET);
   if(buffer == NULL) {
     fprintf(stderr, "Allocation fails.\n");
-    serverError(params, node_index, sock, EALLOC, "Allocation fails.");
+    serverError(params, node_index, EALLOC, "Allocation fails.");
     pthread_exit(NULL);
   }
 
@@ -73,8 +80,8 @@ void* handleServer(void *threadarg) {
   if(recv(sock, buffer, IP_MAXPACKET, 0) < 0) {
     ecode = STATUS_CODE_ERECV_HEADER;
     send(sock, &ecode, 1, 0);
-    free(buffer);
-    serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
+    cleanClientThread(buffer, file_path, sock);
+    serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
   }
   Protocol_header* header = (Protocol_header*) buffer;
@@ -83,7 +90,8 @@ void* handleServer(void *threadarg) {
   file_path = (char*)malloc(sizeof(char) * (header->file_path_length));
   if(file_path == NULL) {
     fprintf(stderr, "Allocation fails.\n");
-    serverError(params, node_index, sock, EALLOC, "Alloc error.");
+    cleanClientThread(buffer, file_path, sock);
+    serverError(params, node_index, EALLOC, "Alloc error.");
     pthread_exit(NULL);
   }
   file_path = (char*) (buffer + sizeof(Protocol_header));
@@ -101,103 +109,72 @@ void* handleServer(void *threadarg) {
     cout<<"[SERVER CLIENT #"<<node_index<<"] Wants write a file. Sent filename: '"<<basename(file_path)<<"', Size: "<<file_size<<" B"<<endl;
 
     // open file
-    ofstream output_file;
-    output_file.open(std::string(cwd) + std::string("/") + basename(file_path), fstream::out | fstream::binary | fstream::trunc);
-    if(!output_file.is_open()) {
+    fstream file (std::string(cwd) + std::string("/") + basename(file_path), fstream::out | fstream::binary | fstream::trunc);
+    if(!file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, 1, 0);
-      free(buffer);
-      serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
+      cleanClientThread(buffer, file_path, sock);
+      serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
+      file.close();
       pthread_exit(NULL);
     }
 
     // opened => OK
     send(sock, &ecode, 1, 0);
 
-    long total_received = 0;
-    char file_buffer[BUFFER_SIZE];
-    ssize_t recv_len;
-    do {
-      if((recv_len = recv(sock, file_buffer, BUFFER_SIZE, 0)) == -1) {
-        ecode = STATUS_CODE_ERECV_FILE;
-        send(sock, &ecode, 1, 0);
-        free(buffer);
-        serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
-        pthread_exit(NULL);
-      }
+    // receive file
+    if((ecode = receiveFileToFileStream(file, sock, BUFFER_SIZE))) {
+      cleanClientThread(buffer, file_path, sock);
+      serverError(params, node_index, ecode, getFileTransferErrorCodeMessage(ecode));
+      file.close();
+      pthread_exit(NULL);
+    } else {
+      cout<<"[SERVER CLIENT #"<<node_index<<"] Successfully received file."<<endl;
+    }
 
-      if(recv_len == 0) {
-        if(file_size != total_received) {
-          cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended unsuccessfully. Total number of received bytes: "<<total_received<<" B / "<<file_size<<" B"<<endl;
-          ecode = STATUS_CODE_EFILE_CONTENT;
-          send(sock, &ecode, 1, 0);
-          serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
-          pthread_exit(NULL);
-        } else {
-          cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended successfully. Total number of received bytes: "<<total_received<<" B / "<<file_size<<" B"<<endl;
-          send(sock, &ecode, 1, 0);
-        }
-      }
-
-      total_received += recv_len;
-
-      cout<<"[SERVER CLIENT #"<<node_index<<"] Receiving data of length: "<<recv_len<<" with content: "<<file_buffer<<endl;
-      output_file.write(file_buffer, recv_len);
-    } while (recv_len > 0);
-
-    // close file
-    output_file.close();
+    file.close();
   }
   // read
   else if (header->transfer_mode == READ) {
     cout<<"[SERVER CLIENT #"<<node_index<<"] wants read a file. Received filename: '"<<basename(file_path)<<"'"<<endl;
 
     // open file
-    ifstream input_file;
-    input_file.open(std::string(cwd) + std::string("/") + basename(file_path), fstream::in | fstream::binary);
-    if(!input_file.is_open()) {
+    fstream file (std::string(cwd) + std::string("/") + basename(file_path), fstream::in | fstream::binary);
+    if(!file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, 1, 0);
-      serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
+      cleanClientThread(buffer, file_path, sock);
+      serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
       pthread_exit(NULL);
     }
 
     // opened => OK
     send(sock, &ecode, 1, 0);
 
-    long total_sent = 0;
-    long file_size = 0;
-    char file_buffer[BUFFER_SIZE];
-
-    input_file.seekg(0, input_file.end);
-    file_size = input_file.tellg();
-    input_file.seekg(0, input_file.beg);
-
-    while(input_file.read(file_buffer, BUFFER_SIZE)) {
-      send(sock, buffer, BUFFER_SIZE, 0);
-      total_sent += input_file.gcount();
-      cout<<"[SERVER CLIENT #"<<node_index<<"] "<<input_file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+    // send file
+    if((ecode = sendFileFromFileStream(file, sock, BUFFER_SIZE))) {
+      cleanClientThread(buffer, file_path, sock);
+      serverError(params, node_index, ecode, getFileTransferErrorCodeMessage(ecode));
+      file.close();
+      pthread_exit(NULL);
+    } else {
+      cout<<"[SERVER CLIENT #"<<node_index<<"] Successfully sent file."<<endl;
     }
 
-    send(sock, file_buffer, input_file.gcount(), 0);
-    total_sent += input_file.gcount();
-    cout<<"[SERVER CLIENT #"<<node_index<<"] Transmition ended. Total number of sent bytes: "<<total_sent<< " B / "<<file_size<<" B"<<endl;
-
-    // close file
-    input_file.close();
+    file.close();
 
   // else
   } else {
     ecode = STATUS_CODE_ERECV_HEADER_TRANSFER_MODE;
     send(sock, &ecode, 1, 0);
-    serverError(params, node_index, sock, ecode, getStatusCodeMessage(ecode));
-    free(buffer);
+    cleanClientThread(buffer, file_path, sock);
+    serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
   }
 
   // clean
-  free(buffer);
-  serverEnd(params, node_index, sock);
+  //cleanClientThread(buffer, file_path, sock);
+  serverEnd(params, node_index);
 
   pthread_exit(NULL);
 }
@@ -264,9 +241,6 @@ int main(int argc, char *argv[]) {
 
   while(true) {
 
-    // CTRL+C handler
-    if(G_break == 1)
-      break;
 
     // server already handled number of requested requests
     if(params.requests_count != -1 && requests_count > params.requests_count)
@@ -288,7 +262,7 @@ int main(int argc, char *argv[]) {
     threadarg->sock = client_sock;
 
     // pthread per client
-    if(pthread_create(&threads[params.nodes_count], NULL, handleServer, (void *) threadarg) != 0) {
+    if(pthread_create(&threads[params.nodes_count], NULL, handleClientThread, (void *) threadarg) != 0) {
       printError(ETHREAD, "Unable to create thread.\n");
       return ETHREAD;
     }

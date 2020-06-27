@@ -8,7 +8,7 @@
 
 CLIENT_ROOT=./tests/client_root
 SERVER_ROOT=./tests/server_root
-PORT=50126  
+PORT=501261  
 TEST_FILE_NAME=test.txt
 TEST_FILE=./tests/$TEST_FILE_NAME
 TEST_FILE_NAME_COPY=test.txt

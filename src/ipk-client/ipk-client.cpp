@@ -17,12 +17,11 @@ const char *HELP_MSG = {
 };
 
 // free all allocated memory
-void clean(addrinfo* addrinfo, int sock, char* buffer, fstream& file) {
+void clean(addrinfo* addrinfo, int sock, char* buffer) {
   if(buffer != NULL)
     free(buffer);
   close(sock);
   freeaddrinfo(addrinfo);
-  file.close();
 }
 
 /**
@@ -42,7 +41,6 @@ int main(int argc, char *argv[]) {
   memset(&host_info, 0, sizeof host_info);
   host_info.ai_family = AF_UNSPEC;
   host_info.ai_socktype = SOCK_STREAM;
-  fstream file;
 
   // parsing parameters
   TParams params = getParams(argc, argv);
@@ -54,7 +52,7 @@ int main(int argc, char *argv[]) {
   // try get addrinfo
   if((getaddrinfo(params.host.c_str(), params.port.c_str(), &host_info, &host_ips)) != 0) {
     printError(EOPT, "Hostname address is not valid.");
-    clean(host_ips, sock, buffer, file);
+    clean(host_ips, sock, buffer);
     return EOPT;
   }
 
@@ -75,7 +73,7 @@ int main(int argc, char *argv[]) {
   buffer = (char*)malloc(sizeof(Protocol_header) + file_path_length + 1);
   if(buffer == NULL) {
     fprintf(stderr, "Allocation fails.\n");
-    clean(host_ips, sock, buffer, file);
+    clean(host_ips, sock, buffer);
     return EALLOC;
   }
 
@@ -97,17 +95,16 @@ int main(int argc, char *argv[]) {
   // write
   if(params.transfer_mode == WRITE) {
 
-    long file_size = 0;
-
     // open file
-    file.open(params.filepath.c_str(), fstream::in | fstream::binary);
+    fstream file (params.filepath.c_str(), fstream::in | fstream::binary);
     if(!file.is_open()) {
       printError(EFILE, "Error opening file to write on server: " + params.filepath);
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
       return EFILE;
     }
 
     // file size (is required have opened file)
+    long file_size = 0;
     file.seekg(0, file.end);
     file_size = file.tellg();
     file.seekg(0, file.beg);
@@ -119,46 +116,36 @@ int main(int argc, char *argv[]) {
     // send header
     if((send(sock, buffer, sizeof(Protocol_header) + file_path_length + 1, 0)) == -1) {
       printError(ESEND, "Header was not succesfully sent.");
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
+      file.close();
       return ESEND;
     }
 
     // receive header response
 	if((recv(sock, &response, 1, 0)) == -1) {
       printError(ERECV, "Header response was not succesfully received.");
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
+      file.close();
       return ERECV;
     }
-
     if(response) {
       printError(response, getStatusCodeMessage(response));
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
+      file.close();
       return response;
     }
 
-    cout<<"[CLIENT] Sending file: '"<<params.filepath<<"' Velikost: "<<file_size<<" B"<<endl;
-
-    // sending file
-    long total_sent = 0;
-    while(file.read(buffer, BUFFER_SIZE)) {
-      if(send(sock, buffer, file.gcount(), 0) == -1) {
-        printError(ESEND, "File content was not succesfully sent.");
-        clean(host_ips, sock, buffer, file);
-        return ESEND;
-      }
-
-      total_sent += file.gcount();
-      cout<<"[CLIENT] "<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+    // send file
+    if((ecode = sendFileFromFileStream(file, sock, BUFFER_SIZE))) {
+      printError(ecode, getFileTransferErrorCodeMessage(ecode));
+      clean(host_ips, sock, buffer);
+      file.close();
+      return ecode;
+    } else {
+      cout<<"[CLIENT] Successfully sent file: '"<<params.filepath<<"' with size: "<<file_size<<" B"<<endl;
     }
 
-    if(send(sock, buffer, file.gcount(), 0) == -1) {
-      printError(ESEND, "File content was not succesfully sent.");
-      clean(host_ips, sock, buffer, file);
-      return ESEND;
-    }
-
-    total_sent += file.gcount();
-    cout<<"[CLIENT] "<<file.gcount()<<" B sent. Total number of sent bytes: "<<total_sent<<" B / "<<file_size<<" B"<<endl;
+    file.close();
   }
   // read
   else {
@@ -170,58 +157,34 @@ int main(int argc, char *argv[]) {
     // send header
     if((send(sock, buffer, sizeof(Protocol_header) + file_path_length + 1, 0)) == -1) {
       printError(ESEND, "Header was not succesfully sent.");
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
       return ESEND;
     }
 
     // receive header response
     if((recv(sock, &response, 1, 0)) != 1) {
       printError(ERECV, "Header response was not succesfully received.");
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
       return ERECV;
     }
-
     if(response) {
       printError(response, getStatusCodeMessage(response));
-      clean(host_ips, sock, buffer, file);
+      clean(host_ips, sock, buffer);
       return response;
     }
 
-    cout<<"[CLIENT] Receiving file: '"<<params.filepath.c_str()<<"'"<<endl;
-
-    // try get file
-    file.open(std::string(cwd) + std::string("/") + params.filepath.c_str(), fstream::out | fstream::binary | fstream::trunc);
-    if(!file.is_open()) {
-      printError(EFILE, "Error during opening file: " + std::string(params.filepath.c_str()));
-      clean(host_ips, sock, buffer, file);
-      return EFILE;
+    // receive file
+    if((ecode = receiveFileToFilePath(params.filepath.c_str(), sock, BUFFER_SIZE))) {
+      printError(ecode, getFileTransferErrorCodeMessage(ecode));
+      clean(host_ips, sock, buffer);
+      return ecode;
+    } else {
+      cout<<"[CLIENT] Successfully received file: '"<<params.filepath.c_str()<<"'"<<endl;
     }
-
-    // receiving file
-    long total_received = 0;
-    char file_buffer[BUFFER_SIZE];
-    ssize_t recv_len;
-    do {
-      if((recv_len = recv(sock, file_buffer, BUFFER_SIZE, 0)) == -1) {
-        printError(ERECV, "File content was not succesfully received.");
-        clean(host_ips, sock, buffer, file);
-        return ERECV;
-      }
-
-      if(recv_len == 0) {
-        cout<<"[CLIENT] Transmition ended. Total number of received bytes: "<<total_received<<" B"<<endl;
-        break;
-      }
-
-      total_received += recv_len;
-
-      cout<<"[CLIENT] Receiving data of length: "<<recv_len<<" with content: "<<file_buffer<<endl;
-      file.write(file_buffer, recv_len);
-    } while (recv_len > 0);
   }
 
   // clean
-  clean(host_ips, sock, buffer, file);
+  clean(host_ips, sock, buffer);
 
   return ecode;
 }

@@ -74,6 +74,11 @@ xdrahn00
 │   │   ├── ipk-client.h
 │   │   ├── ipk-client-params.cpp
 │   │   └── ipk-client-params.h
+│   ├── ipk-file-transfer
+│   │   ├── ipk-file-transfer.cpp
+│   │   ├── ipk-file-transfer-error.cpp
+│   │   ├── ipk-file-transfer-error.h
+│   │   └── ipk-file-transfer.h
 │   ├── ipk-protocol
 │   │   ├── ipk-protocol.cpp
 │   │   └── ipk-protocol.h
@@ -86,12 +91,10 @@ xdrahn00
 │       └── ipk-server-params.h
 └── tests
     ├── client_root
-    │   └── .gitkeep
     ├── server_root
-    │   └── .gitkeep
     ├── test (copy).txt
     ├── tests.sh
     └── test.txt
 
-8 directories, 22 files
+9 directories, 24 files
 ```
