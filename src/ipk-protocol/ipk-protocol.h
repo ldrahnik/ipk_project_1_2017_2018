@@ -8,7 +8,8 @@
 #define _ipk_protocol_H_
 
 #include <stdint.h>
-
+#include <cstdint>
+ 
 #define BUFFER_SIZE 1448
 
 #pragma pack(push, 1)
@@ -25,7 +26,7 @@ enum protocol_transfer_mode {
   WRITE = 1
 };
 
-enum protocol_status_code {
+enum protocol_status_code: int8_t {
   STATUS_CODE_OK = 0,
   STATUS_CODE_EOPEN_FILE = 100,
   STATUS_CODE_ERECV_HEADER = 101,

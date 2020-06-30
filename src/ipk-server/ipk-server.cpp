@@ -54,7 +54,7 @@ void serverEnd(TParams* params, int node_index) {
 }
 
 void* handleClientThread(void *threadarg) {
-  int ecode = EOK;
+  uint8_t ecode = EOK;
 
   // thread args
   struct pthread_args *pthread_args = (struct pthread_args *) threadarg;
@@ -79,7 +79,7 @@ void* handleClientThread(void *threadarg) {
   // incoming header
   if(recv(sock, buffer, IP_MAXPACKET, 0) < 0) {
     ecode = STATUS_CODE_ERECV_HEADER;
-    send(sock, &ecode, 1, 0);
+    send(sock, &ecode, sizeof(ecode), 0);
     cleanClientThread(buffer, file_path, sock);
     serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
@@ -112,7 +112,7 @@ void* handleClientThread(void *threadarg) {
     fstream file (std::string(cwd) + std::string("/") + basename(file_path), fstream::out | fstream::binary | fstream::trunc);
     if(!file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
-      send(sock, &ecode, 1, 0);
+      send(sock, &ecode, sizeof(ecode), 0);
       cleanClientThread(buffer, file_path, sock);
       serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
       file.close();
@@ -120,7 +120,7 @@ void* handleClientThread(void *threadarg) {
     }
 
     // opened => OK
-    send(sock, &ecode, 1, 0);
+    send(sock, &ecode, sizeof(ecode), 0);
 
     // receive file
     if((ecode = receiveFileToFileStream(file, sock, BUFFER_SIZE))) {
@@ -142,14 +142,14 @@ void* handleClientThread(void *threadarg) {
     fstream file (std::string(cwd) + std::string("/") + basename(file_path), fstream::in | fstream::binary);
     if(!file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
-      send(sock, &ecode, 1, 0);
+      send(sock, &ecode, sizeof(ecode), 0);
       cleanClientThread(buffer, file_path, sock);
       serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
       pthread_exit(NULL);
     }
 
     // opened => OK
-    send(sock, &ecode, 1, 0);
+    send(sock, &ecode, sizeof(ecode), 0);
 
     // send file
     if((ecode = sendFileFromFileStream(file, sock, BUFFER_SIZE))) {
@@ -166,14 +166,14 @@ void* handleClientThread(void *threadarg) {
   // else
   } else {
     ecode = STATUS_CODE_ERECV_HEADER_TRANSFER_MODE;
-    send(sock, &ecode, 1, 0);
+    send(sock, &ecode, sizeof(ecode), 0);
     cleanClientThread(buffer, file_path, sock);
     serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
   }
 
   // clean
-  //cleanClientThread(buffer, file_path, sock);
+  cleanClientThread(buffer, file_path, sock);
   serverEnd(params, node_index);
 
   pthread_exit(NULL);

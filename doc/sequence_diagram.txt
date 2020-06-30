@@ -5,13 +5,13 @@ note over Client A,Server:typedef struct protocol_header {\n  uint8_t transfer_m
 
 Client A<-Server: STATUS CODE
 
-note over Client A,Server:STATUS_CODE_OK = 0\nSTATUS_CODE_EOPEN_FILE = 100\nSTATUS_CODE_ERECV_HEADER = 101\nSTATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102
+note over Client A,Server:enum protocol_status_code: int8_t {\n  STATUS_CODE_OK = 0\n  STATUS_CODE_EOPEN_FILE = 100\n  STATUS_CODE_ERECV_HEADER = 101\n  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102\n}
 **
 
 
 Client A-->Server:FILE TRANSFER (if previous STATUS CODE is OK)
 
-note over Client A,Server:# BUFFER_SIZE 1448 # maximum bytes of file in one packet\n\n  STATUS_CODE_ERECV_FILE = 103 # during\n  STATUS_CODE_EFILE_CONTENT = 104 # when file transfer ended
+note over Client A,Server:# BUFFER_SIZE 1448 # maximum bytes of file in one packet
 **
 
 Client B->Server:READ REQUEST (protocol header + file path)
@@ -21,7 +21,7 @@ note over Client B,Server:typedef struct protocol_header {\n  uint8_t transfer_m
 
 Client B<-Server: STATUS CODE
 
-note over Client B,Server:STATUS_CODE_OK = 0\nSTATUS_CODE_EOPEN_FILE = 100\nSTATUS_CODE_ERECV_HEADER = 101\nSTATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102
+note over Client B,Server:enum protocol_status_code: int8_t {\n  STATUS_CODE_OK = 0\n  STATUS_CODE_EOPEN_FILE = 100\n  STATUS_CODE_ERECV_HEADER = 101\n  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102\n}
 **
 
 
