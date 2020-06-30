@@ -34,11 +34,9 @@ void clean(TParams *params, addrinfo* addrinfo, Tpthread_args* threads_args[], i
   freeaddrinfo(addrinfo);
 }
 
-void cleanClientThread(char* buffer, char* file_path, int sock) {
+void cleanClientThread(char* buffer, int sock) {
   if(buffer != NULL)
     free(buffer);
-  if(file_path != NULL)
-    free(file_path);
   close(sock);
 }
 
@@ -80,20 +78,13 @@ void* handleClientThread(void *threadarg) {
   if(recv(sock, buffer, IP_MAXPACKET, 0) < 0) {
     ecode = STATUS_CODE_ERECV_HEADER;
     send(sock, &ecode, sizeof(ecode), 0);
-    cleanClientThread(buffer, file_path, sock);
+    cleanClientThread(buffer, sock);
     serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
   }
   Protocol_header* header = (Protocol_header*) buffer;
 
   // file_path follows-up header
-  file_path = (char*)malloc(sizeof(char) * (header->file_path_length));
-  if(file_path == NULL) {
-    fprintf(stderr, "Allocation fails.\n");
-    cleanClientThread(buffer, file_path, sock);
-    serverError(params, node_index, EALLOC, "Alloc error.");
-    pthread_exit(NULL);
-  }
   file_path = (char*) (buffer + sizeof(Protocol_header));
 
   // root of server (current working directory)
@@ -113,7 +104,7 @@ void* handleClientThread(void *threadarg) {
     if(!file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, sizeof(ecode), 0);
-      cleanClientThread(buffer, file_path, sock);
+      cleanClientThread(buffer, sock);
       serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
       file.close();
       pthread_exit(NULL);
@@ -124,7 +115,7 @@ void* handleClientThread(void *threadarg) {
 
     // receive file
     if((ecode = receiveFileToFileStream(file, sock, BUFFER_SIZE))) {
-      cleanClientThread(buffer, file_path, sock);
+      cleanClientThread(buffer, sock);
       serverError(params, node_index, ecode, getFileTransferErrorCodeMessage(ecode));
       file.close();
       pthread_exit(NULL);
@@ -143,7 +134,7 @@ void* handleClientThread(void *threadarg) {
     if(!file.is_open()) {
       ecode = STATUS_CODE_EOPEN_FILE;
       send(sock, &ecode, sizeof(ecode), 0);
-      cleanClientThread(buffer, file_path, sock);
+      cleanClientThread(buffer, sock);
       serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
       pthread_exit(NULL);
     }
@@ -153,7 +144,7 @@ void* handleClientThread(void *threadarg) {
 
     // send file
     if((ecode = sendFileFromFileStream(file, sock, BUFFER_SIZE))) {
-      cleanClientThread(buffer, file_path, sock);
+      cleanClientThread(buffer, sock);
       serverError(params, node_index, ecode, getFileTransferErrorCodeMessage(ecode));
       file.close();
       pthread_exit(NULL);
@@ -167,13 +158,13 @@ void* handleClientThread(void *threadarg) {
   } else {
     ecode = STATUS_CODE_ERECV_HEADER_TRANSFER_MODE;
     send(sock, &ecode, sizeof(ecode), 0);
-    cleanClientThread(buffer, file_path, sock);
+    cleanClientThread(buffer, sock);
     serverError(params, node_index, ecode, getStatusCodeMessage(ecode));
     pthread_exit(NULL);
   }
 
   // clean
-  cleanClientThread(buffer, file_path, sock);
+  cleanClientThread(buffer, sock);
   serverEnd(params, node_index);
 
   pthread_exit(NULL);
