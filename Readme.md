@@ -64,8 +64,7 @@ bash ./tests/tests.sh
 
 ```
 xdrahn00
-├── doc
-│   └── dokumentace.pdf
+├── dokumentace.pdf
 ├── Makefile
 ├── Readme.md
 ├── src
@@ -93,10 +92,12 @@ xdrahn00
 │       └── ipk-server-params.h
 └── tests
     ├── client_root
+    │   └── .gitkeep
     ├── server_root
+    │   └── .gitkeep
     ├── test (copy).txt
     ├── tests.sh
     └── test.txt
 
-9 directories, 24 files
+8 directories, 26 files
 ```

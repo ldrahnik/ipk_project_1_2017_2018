@@ -3,7 +3,9 @@
 # Date:	10.3.2018
 # Email: <xdrahn00@stud.fit.vutbr.cz>, <ldrahnik@gmail.com>
 
-PROJECT_DOC				= doc/dokumentace.pdf
+PROJECT_DOC_FOLDER		= doc
+PROJECT_DOC_NAME		= dokumentace.pdf
+PROJECT_DOC				= $(PROJECT_DOC_FOLDER)/$(PROJECT_DOC_NAME)
 PROJECT_README			= Readme.md
 PROJECT_OBJECT_FILES	= src/*.o src/*/*.o
 
@@ -66,10 +68,15 @@ rebuild: clean all
 ############################################ ARCHIVE
 
 ARCHIVE_NAME = xdrahn00
-ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES) $(PROJECT_DOC) $(PROJECT_README) $(TESTS_DIRECTORY)/*
+ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES) $(PROJECT_DOC_NAME) $(PROJECT_README) $(TESTS_DIRECTORY)/*
 
 zip:
-	zip -r $(ARCHIVE_NAME).zip $(ARCHIVE_FILES) -x "tests/server_root/ipk-server" -x "tests/client_root/ipk-client" # exclude binaries for testing
+	cp $(PROJECT_DOC) $(PROJECT_DOC_NAME)
+
+	# exclude binaries for testing
+	zip -r $(ARCHIVE_NAME).zip $(ARCHIVE_FILES) -x "tests/server_root/ipk-server" -x "tests/client_root/ipk-client"
+
+	rm -f $(PROJECT_DOC_NAME)
 
 unzip:
 	unzip $(ARCHIVE_NAME).zip -d $(ARCHIVE_NAME)
