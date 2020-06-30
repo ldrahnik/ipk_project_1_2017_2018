@@ -5,6 +5,7 @@
 
 PROJECT_DOC				= doc/dokumentace.pdf
 PROJECT_README			= Readme.md
+PROJECT_OBJECT_FILES	= src/*.o src/*/*.o
 
 ########################################### FILE TRANSFER
 
@@ -48,16 +49,16 @@ $(CLIENT_NAME): $(CLIENT_OBJECTS)
 	$(CLIENT_CC) $(CLIENT_CFLAGS) $(CLIENT_SOURCES) -o $@
 
 $(CLIENT_NAME_TESTS): $(CLIENT_OBJECTS)
-	$(CLIENT_CC) $(CLIENT_CFLAGS) $(CLIENT_SOURCES) -o ./tests/client_root/$(CLIENT_NAME)
+	$(CLIENT_CC) $(CLIENT_CFLAGS) $(CLIENT_SOURCES) -o $(TESTS_CLIENT_BINARY)
 
 $(SERVER_NAME):	$(SERVER_OBJECTS)
 	$(SERVER_CC) $(SERVER_CFLAGS) $(SERVER_SOURCES) -o $@
 
 $(SERVER_NAME_TESTS): $(SERVER_OBJECTS)
-	$(SERVER_CC) $(SERVER_CFLAGS) $(SERVER_SOURCES) -o ./tests/server_root/$(SERVER_NAME)
+	$(SERVER_CC) $(SERVER_CFLAGS) $(SERVER_SOURCES) -o $(TESTS_SERVER_BINARY)
 
 clean:
-	rm -rf *~ $(SERVER_OBJECTS) $(CLIENT_OBJECTS)
+	rm -rf *~ $(PROJECT_OBJECT_FILES) $(CLIENT_NAME) $(SERVER_NAME) $(TESTS_CLIENT_BINARY) $(TESTS_SERVER_BINARY)
 	cd doc && make clean
 
 rebuild: clean all
@@ -65,7 +66,7 @@ rebuild: clean all
 ############################################ ARCHIVE
 
 ARCHIVE_NAME = xdrahn00
-ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES) $(PROJECT_DOC) $(PROJECT_README) ./tests/*
+ARCHIVE_FILES = Makefile $(CLIENT_SOURCES) $(SERVER_SOURCES) $(PROTOCOL_SOURCES) $(FILE_TRANSFER_SOURCES) $(PROJECT_DOC) $(PROJECT_README) $(TESTS_DIRECTORY)/*
 
 zip:
 	zip -r $(ARCHIVE_NAME).zip $(ARCHIVE_FILES) -x "tests/server_root/ipk-server" -x "tests/client_root/ipk-client" # exclude binaries for testing
@@ -82,6 +83,10 @@ tex:
 	cd doc && make && make dokumentace.ps && make dokumentace.pdf
 
 ############################################ TESTS
+
+TESTS_DIRECTORY			= ./tests
+TESTS_CLIENT_BINARY		= ./$(TESTS_DIRECTORY)/client_root/$(CLIENT_NAME)
+TESTS_SERVER_BINARY		= ./$(TESTS_DIRECTORY)/server_root/$(SERVER_NAME)
 
 test:
 	bash ./tests/tests.sh
