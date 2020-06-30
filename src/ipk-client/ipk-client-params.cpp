@@ -77,6 +77,10 @@ TParams getParams(int argc, char *argv[]) {
         params.ecode = EFILE;
       }
       file.close();
+      if(remove(params.filepath.c_str())) {
+        fprintf(stderr, "Error during removing file (write access): %s", params.filepath.c_str());
+        params.ecode = EFILE;
+      }
     } else if(params.transfer_mode == WRITE) {
       file.open(params.filepath.c_str(), fstream::in | fstream::binary);
       if(!file.is_open()) {
