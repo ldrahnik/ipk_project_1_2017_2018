@@ -58,7 +58,7 @@ $(SERVER_NAME_TESTS): $(SERVER_OBJECTS)
 	$(SERVER_CC) $(SERVER_CFLAGS) $(SERVER_SOURCES) -o $(TESTS_SERVER_BINARY)
 
 clean:
-	rm -rf *~ $(PROJECT_OBJECT_FILES) $(CLIENT_NAME) $(SERVER_NAME) $(TESTS_CLIENT_BINARY) $(TESTS_SERVER_BINARY)
+	rm -rf *~ $(PROJECT_OBJECT_FILES) $(CLIENT_NAME) $(SERVER_NAME) $(TESTS_CLIENT_BINARY) $(TESTS_SERVER_BINARY) $(ARCHIVE_NAME).zip $(ARCHIVE_NAME)
 	cd doc && make clean
 
 rebuild: clean all
@@ -76,6 +76,9 @@ unzip:
 
 rmzip:
 	rm -f $(ARCHIVE_NAME).zip
+
+tree:
+	tree -a $(ARCHIVE_NAME)
 
 ############################################ LATEX
 
