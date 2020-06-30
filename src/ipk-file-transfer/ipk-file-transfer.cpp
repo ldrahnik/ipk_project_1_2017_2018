@@ -18,11 +18,14 @@ int receiveFileToFilePath(const char* file_path, int sock, int chunk_size) {
   ssize_t recv_len;
 
   while(true) {
-    if((recv_len = recv(sock, buffer, chunk_size, 0)) == -1)
+    if((recv_len = recv(sock, buffer, chunk_size, 0)) == -1) {
+      delete[] buffer;
+      file.close();
       return FILE_TRANSFER_ERECV;
+    }
 
     if(recv_len == 0)
-      return FILE_TRANSFER_OK;
+      break;
 
     file.write(buffer, recv_len);
   }
@@ -39,11 +42,13 @@ int receiveFileToFileStream(std::fstream& file, int sock, int chunk_size) {
   ssize_t recv_len;
 
   while(true) {
-    if((recv_len = recv(sock, buffer, chunk_size, 0)) == -1)
+    if((recv_len = recv(sock, buffer, chunk_size, 0)) == -1) {
+      delete[] buffer;
       return FILE_TRANSFER_ERECV;
+    }
 
     if(recv_len == 0)
-      return FILE_TRANSFER_OK;
+      break;
 
     file.write(buffer, recv_len);
   }
@@ -59,6 +64,7 @@ int sendFileFromFileStream(std::fstream& file, int sock, int chunk_size) {
 
   while(file.read(buffer, chunk_size)) {
     if(send(sock, buffer, file.gcount(), 0) == -1) {
+      delete[] buffer;
       return FILE_TRANSFER_ESEND;
     }
   }
