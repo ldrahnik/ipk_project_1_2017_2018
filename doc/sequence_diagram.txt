@@ -1,0 +1,32 @@
+Client A->Server:WRITE REQUEST (protocol header + file path)
+
+note over Client A,Server:typedef struct protocol_header {\n  uint8_t transfer_mode :1; # WRITE = 1\n  int file_path_length;\n  long file_size;\n} Protocol_header;\n# char *file_path; (variable length)\n\nenum protocol_transfer_mode {\n  READ = 0,\n  WRITE = 1\n};\n\nfile_path, file_path_length, file_size # is used basename of file
+**
+
+Client A<-Server: STATUS CODE
+
+note over Client A,Server:STATUS_CODE_OK = 0\nSTATUS_CODE_EOPEN_FILE = 100\nSTATUS_CODE_ERECV_HEADER = 101\nSTATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102
+**
+
+
+Client A-->Server:FILE TRANSFER (if previous STATUS CODE is OK)
+
+note over Client A,Server:# BUFFER_SIZE 1448 # maximum bytes of file in one packet\n\n  STATUS_CODE_ERECV_FILE = 103 # during\n  STATUS_CODE_EFILE_CONTENT = 104 # when file transfer ended
+**
+
+Client B->Server:READ REQUEST (protocol header + file path)
+	
+note over Client B,Server:typedef struct protocol_header {\n  uint8_t transfer_mode :1; # READ = 0\n  int file_path_length;\n  long file_size;\n} Protocol_header;\n# char *file_path; (variable length)\n\nenum protocol_transfer_mode {\n  READ = 0,\n  WRITE = 1\n};\n\nfile_path, file_path_length # is used basename of file\nfile_size # not used
+**
+
+Client B<-Server: STATUS CODE
+
+note over Client B,Server:STATUS_CODE_OK = 0\nSTATUS_CODE_EOPEN_FILE = 100\nSTATUS_CODE_ERECV_HEADER = 101\nSTATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102
+**
+
+
+Client B-->Server:FILE TRANSFER (if previous STATUS CODE is OK)
+
+note over Client B,Server:# BUFFER_SIZE 1448 # maximum bytes of file in one packet
+**
+

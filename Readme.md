@@ -5,6 +5,8 @@ ASSESSMENT
 Klient-server pro jednoduchý přenos souborů
 ============
 
+![Sekvenční diagram](./doc/sequence_diagram.png)
+
 ## Příklad spuštění:
 
 ```
