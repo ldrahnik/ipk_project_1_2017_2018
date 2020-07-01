@@ -60,9 +60,6 @@ else
     echo "TEST 3 FAILED";
 fi
 
-# 3 clean
-rm -f $CLIENT_ROOT/$TEST_FILE_NAME
-
-# 1 clean
+# final clean
 rm -f $SERVER_ROOT/$TEST_FILE_NAME
 rm -f $SERVER_ROOT/$TEST_FILE_NAME_COPY;
