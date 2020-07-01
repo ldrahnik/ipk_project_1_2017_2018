@@ -69,6 +69,11 @@ int sendFileFromFileStream(std::fstream& file, int sock, int chunk_size) {
     }
   }
 
+  if(send(sock, buffer, file.gcount(), 0) == -1) {
+    delete[] buffer;
+    return FILE_TRANSFER_ESEND;
+  }
+
   delete[] buffer;
 
   return FILE_TRANSFER_OK;
