@@ -5,7 +5,7 @@ note over Client A,Server:typedef struct protocol_header {\n  uint8_t transfer_m
 
 Client A<-Server: STATUS CODE
 
-note over Client A,Server:enum protocol_status_code: int8_t {\n  STATUS_CODE_OK = 0\n  STATUS_CODE_EOPEN_FILE = 100\n  STATUS_CODE_ERECV_HEADER = 101\n  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102\n}
+note over Client A,Server:enum protocol_status_code: uint8_t {\n  STATUS_CODE_OK = 0\n  STATUS_CODE_EOPEN_FILE = 100\n  STATUS_CODE_ERECV_HEADER = 101\n  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102\n}
 **
 
 
@@ -21,7 +21,7 @@ note over Client B,Server:typedef struct protocol_header {\n  uint8_t transfer_m
 
 Client B<-Server: STATUS CODE
 
-note over Client B,Server:enum protocol_status_code: int8_t {\n  STATUS_CODE_OK = 0\n  STATUS_CODE_EOPEN_FILE = 100\n  STATUS_CODE_ERECV_HEADER = 101\n  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102\n}
+note over Client B,Server:enum protocol_status_code: uint8_t {\n  STATUS_CODE_OK = 0\n  STATUS_CODE_EOPEN_FILE = 100\n  STATUS_CODE_ERECV_HEADER = 101\n  STATUS_CODE_ERECV_HEADER_TRANSFER_MODE = 102\n}
 **
 
 
