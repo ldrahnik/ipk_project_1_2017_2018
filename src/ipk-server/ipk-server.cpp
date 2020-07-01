@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
 
 
     // server already handled number of requested requests
-    if(params.requests_count != -1 && requests_count > params.requests_count)
+    if(params.requests_count != -1 && requests_count == params.requests_count)
       break;
 
     // create client socket
