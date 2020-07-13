@@ -181,6 +181,7 @@ int main(int argc, char *argv[]) {
   pthread_t threads[MAX_CLIENTS];
   Tpthread_args* threads_args[MAX_CLIENTS];
   int requests_count = 0;
+  fd_set my_set;
 
   // get args
   TParams params = getParams(argc, argv);
@@ -232,34 +233,41 @@ int main(int argc, char *argv[]) {
 
   while(true) {
 
-
     // server already handled number of requested requests
     if(params.requests_count != -1 && requests_count == params.requests_count)
       break;
 
-    // create client socket
-    if((client_sock = accept(sock, (struct sockaddr *) &client_addr, &addr_size)) <= 0)
-      continue;
-
-    cout<<"[SERVER] Joined client. Started thread with number: "<<params.nodes_count<<"\n"<<endl;
-
-    requests_count++;
-
-    // create Tpthread_args
-    Tpthread_args* threadarg = new Tpthread_args();
-    threadarg->params = &params;
-    threadarg->node_index = params.nodes_count;
-    threads_args[params.nodes_count] = threadarg;
-    threadarg->sock = client_sock;
-
-    // pthread per client
-    if(pthread_create(&threads[params.nodes_count], NULL, handleClientThread, (void *) threadarg) != 0) {
-      printError(ETHREAD, "Unable to create thread.\n");
-      return ETHREAD;
+    FD_ZERO(&my_set);
+    FD_SET(sock, &my_set);
+    if(select(sock + 1, &my_set, NULL, NULL, NULL) < 0) {
+      printError(ESELECT, "Select failed.\n");
+      ecode = ESELECT;
+      break;
     }
+    if(FD_ISSET(sock, &my_set)) {
+      if((client_sock = accept(sock, (struct sockaddr *) &client_addr, &addr_size)) <= 0)
+        continue;
 
-    // increment client pthreads
-    params.nodes_count++;
+      cout<<"[SERVER] Joined client. Started thread with number: "<<params.nodes_count<<"\n"<<endl;
+
+      requests_count++;
+
+      // create Tpthread_args
+      Tpthread_args* threadarg = new Tpthread_args();
+      threadarg->params = &params;
+      threadarg->node_index = params.nodes_count;
+      threads_args[params.nodes_count] = threadarg;
+      threadarg->sock = client_sock;
+
+      // pthread per client
+      if(pthread_create(&threads[params.nodes_count], NULL, handleClientThread, (void *) threadarg) != 0) {
+        printError(ETHREAD, "Unable to create thread.\n");
+        return ETHREAD;
+      }
+
+      // increment client pthreads
+      params.nodes_count++;
+    }
   }
 
   // wait for all child node's

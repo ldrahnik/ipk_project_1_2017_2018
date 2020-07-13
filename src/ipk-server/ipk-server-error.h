@@ -23,6 +23,7 @@ enum server_ecode {
   ETHREAD = 7,
   ETHREAD_CREATE = 8,
   EALLOC = 9,
+  ESELECT = 10,
 };
 
 void printError(int code, std::string msg);
