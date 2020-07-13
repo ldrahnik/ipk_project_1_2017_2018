@@ -262,7 +262,8 @@ int main(int argc, char *argv[]) {
       // pthread per client
       if(pthread_create(&threads[params.nodes_count], NULL, handleClientThread, (void *) threadarg) != 0) {
         printError(ETHREAD, "Unable to create thread.\n");
-        return ETHREAD;
+        ecode = ETHREAD;
+        break;
       }
 
       // increment client pthreads
