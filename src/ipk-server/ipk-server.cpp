@@ -237,6 +237,10 @@ int main(int argc, char *argv[]) {
     if(params.requests_count != -1 && requests_count == params.requests_count)
       break;
 
+    // wait for free thread to use
+    if(params.nodes_count == MAX_CLIENTS)
+      continue;
+
     FD_ZERO(&my_set);
     FD_SET(sock, &my_set);
     if(select(sock + 1, &my_set, NULL, NULL, NULL) < 0) {
