@@ -95,7 +95,6 @@ xdrahn00
     │   └── .gitkeep
     ├── server_root
     │   └── .gitkeep
-    ├── test (copy).txt
     ├── tests.sh
     └── test.txt
 
